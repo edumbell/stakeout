@@ -1,0 +1,64 @@
+﻿@using WebApplication1.Models
+@model WebApplication1.Models.NightFormModel
+
+
+
+<h3>It is night time.  What will you do?</h3>
+<p>
+	If you watch someone's house, you will know if they slept all night or went out.  You will also meet anyone else who came to that house.
+</p>
+<p>
+	Regardless of your choice, you will spend some of the night sleeping soundly. You will not know who visited your house.
+</p>
+@using (Ajax.BeginForm("NightInstruction", null, new AjaxOptions { OnFailure="debug(xhr,status)", OnBegin = "clearForm()" }, new { @class = "form-horizontal" }))
+{
+	@Html.HiddenFor(m => m.TurnId)
+	@Html.HiddenFor(m => m.ActorId)
+	@Html.HiddenFor(m => m.IsVampire)
+	@Html.ValidationSummary(false)
+	<br />
+	<div class="row">
+		<div class="col-sm-4 night-rdb-wrapper">
+			<div class="control-group">
+				<div class="radio">
+					<label class="control-label sleep-wrapper">
+						@Html.RadioButtonFor(m => m.Action, NightActionEnum.Sleep, new { @class = "", @checked = "checked" })
+						Sleep
+					</label>
+				</div>
+			</div>
+
+
+			@if (Model.OtherPlayers.Count() == 0)
+			{
+				<p>There are no other active players</p>
+			}
+			else
+			{
+				<div class="radio">
+					<label class="control-label">
+						@Html.RadioButtonFor(m => m.Action, NightActionEnum.Watch, new { @class = "radio radiobutton" })
+						Watch
+					</label>
+				</div>
+				if (Model.IsVampire)
+				{
+					<div class="radio">
+						<label class="control-label">
+							@Html.RadioButtonFor(m => m.Action, NightActionEnum.Bite, new { @class = "radio radiobutton" })
+							Bite
+						</label>
+					</div>
+				}
+			}
+		</div>
+		<div class="col-sm-4">
+			<div class="select night-whom-wrapper">
+				@Html.DropDownListFor(m => m.Whom, Model.OtherPlayers, new { @class = "form-control", disabled="disabled", style="display:none" })
+			</div>
+		</div>
+		<div class="col-sm-4">
+			<button type="submit" class="btn btn-warning">OK</button>
+		</div>
+	</div>
+}

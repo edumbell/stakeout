@@ -1,0 +1,17 @@
+﻿@model WebApplication1.Models.JoinModel
+@{
+	ViewBag.Title = "Home Page";
+}
+
+<div class="jumbotron">
+	<h1>Join Stakeout game</h1>
+	@Html.ValidationSummary(false)
+	<br />
+	@using (Html.BeginForm("Join", "Home"))
+	{
+		@Html.LabelFor(m => m.Name, new { @class = "form-label" })
+		@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+		<br />
+		<button type="submit" class="btn btn-lg btn-primary">Join</button>
+	}
+</div>

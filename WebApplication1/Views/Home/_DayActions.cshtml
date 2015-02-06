@@ -1,0 +1,42 @@
+﻿@using WebApplication1.Models
+@model WebApplication1.Models.DayFormModel
+
+<h3>Enter your votes below</h3>
+<p>
+	If you watch someone's house, you will know if they slept all night or went out.  You will also meet anyone else who came to that house.
+</p>
+<p>
+	Regardless of your choice, you will spend some of the night sleeping soundly. You will not know who visited your house.
+</p>
+@using (Ajax.BeginForm("DayInstruction", null, new AjaxOptions { OnFailure = "debug(xhr,status)", OnBegin = "clearForm()" }, new { @class = "form-horizontal" }))
+{
+	@Html.HiddenFor(m => m.TurnId)
+	@Html.HiddenFor(m => m.ActorId)
+	@Html.ValidationSummary(false)
+	<br />
+	<div class="row">
+		<div class="col-sm-5">
+			<label class="control-label pull-left">
+				Jail: &nbsp;
+			</label>
+			@Html.DropDownListFor(m => m.JailWhom, Model.AllPlayers, "Nobody", new { @class = "select form-control " })
+			<div class="clearfix"></div>
+		</div>
+		<div class="col-sm-5">
+			<label class="control-label pull-left">
+				Stake: &nbsp;
+			</label>
+			@Html.DropDownListFor(m => m.KillWhom, Model.OtherPlayers, "Nobody", new { @class = "select form-control" })
+			<div class="clearfix"></div>
+		</div>
+		
+	</div>
+	<div class="row">
+
+		<div class="col-xs-12">
+			<div style="margin-top:-15px">
+				<button type="submit" class="btn btn-info pull-right">OK</button>
+			</div>
+		</div>
+	</div>
+}
