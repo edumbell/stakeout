@@ -54,10 +54,10 @@ namespace WebApplication1.Models
 
 		public void TellBitten()
 		{
-			if (r.Next() * 1.5 > Me.Bites - 1 && SuspicionAgainstMe == 0)
+			if (r.Next() * 1.5 - .5 > Me.Bites - 1 && SuspicionAgainstMe < 2)
 			{
 				Hub.Send(Me.Id, "I've been bitten!");
-				SuspicionAgainstMe += Me.Bites;
+				SuspicionAgainstMe += 1;
 			}
 		}
 
@@ -66,12 +66,12 @@ namespace WebApplication1.Models
 			Relation(id).Enmity++;
 		}
 
-		public void TellWatchResult(bool stayedAtHome)
+		public void TellWatchResult(bool stayedAtHome, bool metAny)
 		{
 			if (LastNightAction.Action == NightActionEnum.Watch)
 			{
 				bool lie = false;
-				if (Me.IsVampire)
+				if (Me.IsVampire && ! metAny)
 				{
 					if (r.Next(10) > 5)
 						return;
@@ -154,51 +154,63 @@ namespace WebApplication1.Models
 
 			var d = new NightFormModel()
 			{
-				ActorId = Me.Id,
-				Whom = RandomId(otherIds)
+				ActorId = Me.Id
 			};
-			if (Me.IsVampire)
+
+			if (otherIds.Any())
 			{
-				if (r.Next() * 10 - r.Next() * 5 < turnId)
+				d.Whom = RandomId(otherIds);
+
+				if (Me.IsVampire)
 				{
-					d.Action = NightActionEnum.Bite;
-				}
-				else if (r.Next() * 10 < 5)
-				{
-					d.Action = NightActionEnum.Watch;
+					if (r.Next() * 10 - r.Next() * 5 < turnId)
+					{
+						d.Action = NightActionEnum.Bite;
+					}
+					else if (r.Next() * 10 < 5)
+					{
+						d.Action = NightActionEnum.Watch;
+					}
+					else
+					{
+						d.Action = NightActionEnum.Sleep;
+					}
 				}
 				else
 				{
-					d.Action = NightActionEnum.Sleep;
+					if (r.Next() * 10 < 5)
+					{
+						d.Action = NightActionEnum.Watch;
+					}
+					else
+					{
+						d.Action = NightActionEnum.Sleep;
+					}
+				}
+
+				if (d.Action == NightActionEnum.Bite)
+				{
+					var maxTastiness = 0d;
+					foreach (var re in Relations.Where(x => !x.KnownVampire))
+					{
+						var t = re.Bites + new Random().Next() * 2;
+						if (t > maxTastiness)
+						{
+							maxTastiness = t;
+							d.Whom = re.PlayerId;
+						}
+					}
+					Relation(d.Whom).Bites++;
+					if (Relation(d.Whom).Bites >= 3)
+					{
+						Relation(d.Whom).KnownVampire = true;
+					}
 				}
 			}
 			else
 			{
-				if (r.Next() * 10 < 5)
-				{
-					d.Action = NightActionEnum.Watch;
-				}
-				else
-				{
-					d.Action = NightActionEnum.Sleep;
-				}
+				d.Action = NightActionEnum.Sleep;
 			}
-
-			if (d.Action == NightActionEnum.Bite)
-			{
-				var maxTastiness = 0d;
-				foreach (var re in Relations.Where(x => !x.KnownVampire))
-				{
-					var t = re.Bites + new Random().Next() * 2;
-					if (t > maxTastiness)
-					{
-						maxTastiness = t;
-						d.Whom = re.PlayerId;
-					}
-				}
-				Relation(d.Whom).Bites++;
-			}
-
 			if (d.Action == NightActionEnum.Sleep
 				|| (
 				d.Action == NightActionEnum.Bite

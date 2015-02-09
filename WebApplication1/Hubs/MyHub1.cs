@@ -20,7 +20,7 @@ namespace WebApplication1.Hubs
 			{
 				var html = p.NameSpan + " "
 					+ (p.IsMayor ? "M" : "")
-					+ (p.IsVampire ? "V" : "");
+					+ (p.IsVampire ? "<span class='bites'>V</span>" : "");
 				if (!p.IsVampire)
 				{
 					html += "<span class='bites'>";
@@ -73,13 +73,13 @@ namespace WebApplication1.Hubs
 
 		public void Announce(string message)
 		{
-			System.Threading.Thread.Sleep(10);
+			System.Threading.Thread.Sleep(300);
 			Clients.All.announce(message);
 		}
 
 		public void Send(string pid, string message)
 		{
-			System.Threading.Thread.Sleep(10);
+			System.Threading.Thread.Sleep(100);
 			var p = Game.GetPlayer(pid);
 			Clients.All.addNewMessageToPage(p.Name, message, p.Colour);
 		}
@@ -140,24 +140,30 @@ namespace WebApplication1.Hubs
 			Announce(msg);
 		}
 
-		public void DisplayVotes()
+		public void DisplayVotes(double needed)
 		{
 			string result = "";
 			foreach (var p in Game.TheGame.MobilePlayers)
 			{
 				var jailMeVoters = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Select(x => x.Actor);
+				var jailMeWeight = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Sum(d => d.Weight);
+				var passedClass = jailMeWeight >= needed ? "passed" : "";
+				var verb = jailMeWeight >= needed ? "passed by" : "proposed by";
 				if (jailMeVoters.Any())
 				{
-					result += "<div><span class=\"voteleft\">Jail " + p.NameSpan + "</span><span class=\"voteright\">" + Game.TheGame.PlayerListToString(jailMeVoters) + "</span></div>";
+					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Jail " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.TheGame.PlayerListToString(jailMeVoters, ", ") + "</span></div>";
 				}
 			}
 
 			foreach (var p in Game.TheGame.MobilePlayers)
 			{
 				var stakeMeVoters = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Select(x => x.Actor);
+				var stakeMeWeight = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Sum(d => d.Weight);
+				var passedClass = stakeMeWeight >= needed ? "passed" : "";
+				var verb = stakeMeWeight >= needed ? "passed by" : "proposed by";
 				if (stakeMeVoters.Any())
 				{
-					result += "<div><span class=\"voteleft\">Stake " + p.NameSpan + "</span><span class=\"voteright\">" + Game.TheGame.PlayerListToString(stakeMeVoters) + "</span></div>";
+					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Stake " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.TheGame.PlayerListToString(stakeMeVoters, ", ") + "</span></div>";
 				}
 			}
 			Clients.All.displayActionsEntered(result);

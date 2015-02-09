@@ -27,6 +27,14 @@ namespace WebApplication1.Models
 		}
 
 
+		public List<Player> LivingPlayers
+		{
+			get
+			{
+				return Players.Where(p => !p.IsDead).ToList();
+			}
+		}
+
 		public List<Player> MobilePlayers
 		{
 			get
@@ -118,7 +126,7 @@ namespace WebApplication1.Models
 				}
 			}
 			CurrentTurn().DayInstructions.Add(i);
-			Hub.DisplayVotes();
+			Hub.DisplayVotes(VotesNeeded);
 
 			if (CurrentTurn().DayInstructions.Count() == MobilePlayers
 				.Where(m => m.Strategy == StrategyEnum.Human)
@@ -134,9 +142,13 @@ namespace WebApplication1.Models
 			}
 		}
 
-		public string PlayerListToString(IEnumerable<Player> players)
+		public string PlayerListToString(IEnumerable<Player> players, string separator = null)
 		{
-			return string.Join(" and ", players.Select(p => p.NameSpan).ToArray());
+			if (separator == null)
+				separator = " and ";
+			if (players.Count() < 3)
+				separator = " and ";
+			return string.Join(separator, players.Select(p => p.NameSpan).ToArray());
 		}
 
 		public void FinishNight()
@@ -158,6 +170,7 @@ namespace WebApplication1.Models
 						if (i.Actor.Strategy == StrategyEnum.AI)
 						{
 							i.Actor.AI.TellFellowVampire(i.Whom.Id);
+							i.Whom.AI.TellFellowVampire(i.Actor.Id);
 						}
 					}
 					else
@@ -183,7 +196,7 @@ namespace WebApplication1.Models
 				{
 					var watcheeInsruction = CurrentTurn().NightInstructions.Where(x => x.Actor == i.Whom).SingleOrDefault();
 					if (watcheeInsruction == null)
-						throw new Exception("Missing night instruction");
+						throw new Exception("Missing night instruction for " + i.Whom.Name);
 					var watcheeAction = watcheeInsruction.Action;
 					if (watcheeAction == NightActionEnum.Sleep)
 					{
@@ -194,14 +207,15 @@ namespace WebApplication1.Models
 						Hub.SendPrivate(p, i.Whom.NameSpan + " snuck out of the house in the middle of the night!");
 					}
 
+					var met = CurrentTurn().NightInstructions.Where(x => x.Whom == i.Whom && x != i).Select(x => x.Actor);
+
 					if (i.Actor.Strategy == StrategyEnum.AI)
 					{
-						i.Actor.AI.TellWatchResult(watcheeAction == NightActionEnum.Sleep);
+						i.Actor.AI.TellWatchResult(watcheeAction == NightActionEnum.Sleep, met.Any());
 					}
 
 					// send 'met' messages
-
-					var met = CurrentTurn().NightInstructions.Where(x => x.Whom == i.Whom && x != i).Select(x => x.Actor);
+				
 					if (met.Any())
 					{
 						var metlist = PlayerListToString(met);
@@ -257,6 +271,17 @@ namespace WebApplication1.Models
 			m.IsMayor = true;
 		}
 
+		public double VotesNeeded
+		{
+			get
+			{
+				var result = LivingPlayers.Count * 0.501;
+				if (result < 2)
+					result = 2;
+				return result;
+			}
+		}
+
 		public void FinishDay()
 		{
 			Dictionary<string, double> stakeVotes = new Dictionary<string, double>();
@@ -267,17 +292,16 @@ namespace WebApplication1.Models
 				jailVotes.Add(p.Id, 0);
 			}
 			// nobody should be in jail at this point
-			var votesNeeded = MobilePlayers.Count * 0.501;
+			var votesNeeded = VotesNeeded;
 			foreach (var d in CurrentTurn().DayInstructions)
 			{
-				var weighting = d.Actor.IsMayor ? 1.1 : 1;
 				if (d.JailVote != null)
 				{
-					jailVotes[d.JailVote.Id] += weighting;
+					jailVotes[d.JailVote.Id] += d.Weight;
 				}
 				if (d.StakeVote != null)
 				{
-					stakeVotes[d.StakeVote.Id] += weighting;
+					stakeVotes[d.StakeVote.Id] += d.Weight;
 					if (GetPlayer(d.StakeVote.Id).Strategy == StrategyEnum.AI)
 					{
 						GetPlayer(d.StakeVote.Id).AI.TellStakeVote(d.Actor.Id);
@@ -412,11 +436,14 @@ namespace WebApplication1.Models
 			Actor = game.Players.Where(p => p.Id == model.ActorId).Single();
 			JailVote = game.Players.Where(p => p.Id == model.JailWhom).SingleOrDefault();
 			StakeVote = game.Players.Where(p => p.Id == model.KillWhom).SingleOrDefault();
+			Weight = Actor.IsMayor ? 1.1 : 1;
 		}
 
 		public Player Actor { get; set; }
 		public Player JailVote { get; set; }
 		public Player StakeVote { get; set; }
+
+		public double Weight { get; set; }
 	}
 
 

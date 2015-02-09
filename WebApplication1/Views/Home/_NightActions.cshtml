@@ -1,13 +1,11 @@
 ﻿@using WebApplication1.Models
 @model WebApplication1.Models.NightFormModel
 
-
-
-<h3>It is night time.  What will you do?</h3>
-<p>
+<h4 class="help">It is night time.  What will you do?</h4>
+<p class="help">
 	If you watch someone's house, you will know if they slept all night or went out.  You will also meet anyone else who came to that house.
 </p>
-<p>
+<p class="help">
 	Regardless of your choice, you will spend some of the night sleeping soundly. You will not know who visited your house.
 </p>
 @using (Ajax.BeginForm("NightInstruction", null, new AjaxOptions { OnFailure="debug(xhr,status)", OnBegin = "clearForm()" }, new { @class = "form-horizontal" }))

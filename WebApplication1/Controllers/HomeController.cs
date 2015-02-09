@@ -19,33 +19,31 @@ namespace WebApplication1.Controllers
 		{
 			if (model.Name == null)
 				throw new Exception("Tried to join with null name?");
-			if (Game.TheGame.Turns.Any())
+			var existing = Game.TheGame.Players.Where(p => p.Name == model.Name).FirstOrDefault();
+			if (existing != null)
 			{
-				var existing = Game.TheGame.Players.Where(p => p.Name == model.Name).FirstOrDefault();
-				if (existing != null)
-				{
-					return View("Interface", new StartGameModel()
-					{
-						PlayerId = existing.Id
-					});
-				}
-				throw new Exception("Game has already started");
-			}
-			else
-			{
-				var p = new Player()
-				{
-					Bites = 0,
-					Name = model.Name,
-					Strategy = StrategyEnum.Human,
-					Id = Guid.NewGuid().ToString()
-				};
-				Game.TheGame.Players.Add(p);
 				return View("Interface", new StartGameModel()
 				{
-					PlayerId = p.Id
+					PlayerId = existing.Id
 				});
 			}
+
+			if (Game.TheGame.HasStarted)
+			{
+				throw new Exception("Game has already started");
+			}
+			var player = new Player()
+			{
+				Bites = 0,
+				Name = model.Name,
+				Strategy = StrategyEnum.Human,
+				Id = Guid.NewGuid().ToString()
+			};
+			Game.TheGame.Players.Add(player);
+			return View("Interface", new StartGameModel()
+			{
+				PlayerId = player.Id
+			});
 
 		}
 

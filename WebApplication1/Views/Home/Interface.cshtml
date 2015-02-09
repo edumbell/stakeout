@@ -25,8 +25,8 @@
 
 		function debug(xhr, data) {
 			if (data != "success") {
-				console.log(xhr);
-				alert(data);
+				console.log(data);
+				alert(data.responseMessage);
 			}
 		}
 
@@ -80,7 +80,9 @@
 			}
 
 			hub.client.startNight = function (turn) {
-				$("body").addClass("night");
+				$("body").addClass("sun");
+				setTimeout(function () { $("body").addClass("dusk"); }, 2000);
+				setTimeout(function () { $("body").addClass("night"); }, 4000);
 				setStatus("It is night time (day " + turn + ")");
 				getActions();
 			};
@@ -88,6 +90,8 @@
 			hub.client.startDay = function (turn) {
 				$(".actions-entered").html('');
 				$("body").removeClass("night");
+				setTimeout(function () { $("body").removeClass("dusk"); }, 2000);
+				setTimeout(function () { $("body").removeClass("sun"); }, 4000);
 				setStatus("It is the morning of day " + turn);
 				getActions();
 			};
@@ -122,6 +126,26 @@
 
 			});
 
+			$("#selFontSize").change(function () {
+				var val = $("#selFontSize").val();
+				$("body").removeClass("small");
+				$("body").removeClass("medium");
+				$("body").removeClass("large");
+				$("body").addClass(val);
+			});
+
+			$("#chbShowHelp").change(function () {
+				
+				if ($("#chbShowHelp:checked").length > 0)
+				{
+					$("body").addClass("show-help");
+				}
+				else
+				{
+					$("body").removeClass("show-help");
+				}
+			});
+
 			$("body").on("change checked", ".night-rdb-wrapper input", null, function () {
 
 				if ($(".sleep-wrapper input:checked").length > 0) {
@@ -152,22 +176,14 @@
 				Waiting for players.
 				<br /><br />
 				<div class="btn-group">
-					<input class="btn btn-info ai-button" value="Add AI" />
+					<input class="btn btn-info ai-button" value="Add 1 bot player" />
 					<input class="btn btn-primary start-button" value="Start game" />
 				</div>
 			</h4>
 			<div class="player-status pull-right"></div>
 		</div>
 	</div>
-	<div class="col-sm-6">
-
-		<ul id="private" class="msgbox"></ul>
-		<fieldset>
-			<legend>Your actions</legend>
-			<div class="actions">
-
-			</div>
-		</fieldset>
+	<div class="col-sm-6 form-horizontal">
 
 		<p class="waiting" style="margin-top:15px">
 		</p>
@@ -177,10 +193,8 @@
 			<div class="actions-entered">
 			</div>
 		</fieldset>
-	</div>
 
-	<div class="col-sm-6 form-horizontal">
-		<div>
+		<div class="send-msg">
 			<input type="text" id="message" class="form-control pull-left" />
 
 			<input type="button" class="btn btn-primary pull-left" id="sendmessage" value="Send" />
@@ -194,4 +208,29 @@
 			</div>
 		</div>
 	</div>
+	<div class="col-sm-6">
+		<ul id="private" class="msgbox"></ul>
+		<fieldset>
+			<legend>Your actions</legend>
+			<div class="actions">
+
+			</div>
+		</fieldset>
+	</div>
+
 </div>
+
+<hr />
+<label class="control-label">
+	<input type="checkbox" checked="checked" id="chbShowHelp"  class="checkbox-inline"/>
+	Show help
+</label>
+<br/>
+<label class="control-label">
+	Font size
+	<select class="select" id="selFontSize">
+		<option>small</option>
+		<option>medium</option>
+		<option selected="selected">large</option>
+	</select>
+</label>
