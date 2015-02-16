@@ -7,7 +7,12 @@ namespace WebApplication1.Models
 {
 	public class Game
 	{
-		public static Game TheGame = new Game();
+		public static List<Game> GameList = new List<Game>();
+
+		public static Game GetGame(string id)
+		{
+			return GameList.Where(g => g.GameId == id).Single();
+		}
 
 		public Game()
 		{
@@ -16,16 +21,32 @@ namespace WebApplication1.Models
 			//Turns.Add(0, new Turn());
 		}
 
+		public void Announce(string msg)
+		{
+			Hub.Announce(this, msg);
+		}
+
 		public WebApplication1.Hubs.StakeHub Hub { get; set; }
+
+		public string Name { get; set; }
+		public string GameId { get; set; }
 
 		public List<Player> Players { get; set; }
 		public Dictionary<int, Turn> Turns { get; set; }
 
-		public static Player GetPlayer(string id)
+		public Player GetPlayer(string id)
 		{
-			return Game.TheGame.Players.Where(p => p.Id == id).SingleOrDefault();
+			return Players.Where(p => p.Id == id).SingleOrDefault();
 		}
 
+		public int GetNumHumans()
+		{
+			return Players.Where(p => p.Strategy == StrategyEnum.Human).Count();
+		}
+		public int GetNumBots()
+		{
+			return Players.Where(p => p.Strategy == StrategyEnum.AI).Count();
+		}
 
 		public List<Player> LivingPlayers
 		{
@@ -108,7 +129,7 @@ namespace WebApplication1.Models
 				}
 			}
 			CurrentTurn().NightInstructions.Add(i);
-			Hub.DisplayNightActionsEntered();
+			Hub.DisplayNightActionsEntered(this);
 			if (CurrentTurn().NightInstructions.Count() == MobilePlayers.Count())
 			{
 				FinishNight();
@@ -126,7 +147,7 @@ namespace WebApplication1.Models
 				}
 			}
 			CurrentTurn().DayInstructions.Add(i);
-			Hub.DisplayVotes(VotesNeeded);
+			Hub.DisplayVotes(this, VotesNeeded);
 
 			if (CurrentTurn().DayInstructions.Count() == MobilePlayers
 				.Where(m => m.Strategy == StrategyEnum.Human)
@@ -136,13 +157,13 @@ namespace WebApplication1.Models
 				GetDayInstructionsFromAIs();
 			}
 
-			if (CurrentTurn().DayInstructions.Count() == MobilePlayers.Count())
+			if (CurrentTurn().DayInstructions.Count() == LivingPlayers.Count())
 			{
 				FinishDay();
 			}
 		}
 
-		public string PlayerListToString(IEnumerable<Player> players, string separator = null)
+		public static string PlayerListToString(IEnumerable<Player> players, string separator = null)
 		{
 			if (separator == null)
 				separator = " and ";
@@ -240,7 +261,7 @@ namespace WebApplication1.Models
 				}
 			}
 			CurrentTurn().NightComplete = true;
-			Hub.SendStartDay(CurrentTurn().Id);
+			Hub.SendStartDay(this, CurrentTurn().Id);
 
 		}
 
@@ -249,7 +270,7 @@ namespace WebApplication1.Models
 			foreach (var p in MobilePlayers.Where(p => p.Strategy == StrategyEnum.AI))
 			{
 				var inst = p.AI.GetNightInstruction(MobilePlayers.Select(m => m.Id).ToList(), CurrentTurn().Id);
-				var inst2 = new NightInstruction(Game.TheGame, inst);
+				var inst2 = new NightInstruction(this, inst);
 				ProcessNightInstruction(inst2);
 			}
 		}
@@ -259,7 +280,7 @@ namespace WebApplication1.Models
 			foreach (var p in MobilePlayers.Where(p => p.Strategy == StrategyEnum.AI))
 			{
 				var inst = p.AI.GetDayInstruction(MobilePlayers.Select(m => m.Id).ToList(), CurrentTurn().Id);
-				var inst2 = new DayInstruction(Game.TheGame, inst);
+				var inst2 = new DayInstruction(this, inst);
 				ProcessDayInstruction(inst2);
 			}
 		}
@@ -267,7 +288,7 @@ namespace WebApplication1.Models
 		public void NewMayor()
 		{
 			var m = RandomPlayers().First();
-			Hub.Announce("The town needs a new mayor.  Lots are drawn. It is " + m.NameSpan);
+			Announce( "The town needs a new mayor.  Lots are drawn. It is " + m.NameSpan);
 			m.IsMayor = true;
 		}
 
@@ -316,7 +337,7 @@ namespace WebApplication1.Models
 					var toJail = p;
 					toJail.IsInJail = true;
 					var mob = CurrentTurn().DayInstructions.Where(v => v.JailVote == toJail).Select(v => v.Actor);
-					Hub.Announce(toJail.NameSpan + " has been put into protective custody for the night, by "
+					Announce( toJail.NameSpan + " has been put into protective custody for the night, by "
 						+ PlayerListToString(mob)
 						);
 				}
@@ -328,11 +349,11 @@ namespace WebApplication1.Models
 						PlayerListToString(CurrentTurn().DayInstructions.Where(v => v.StakeVote == tostake).Select(v => v.Actor));
 					if (tostake.IsInJail)
 					{
-						Hub.Announce("Luckily, " + tostake.NameSpan + " was in protective custoy when any angry mob (" + mob + ") came to try and stake them.");
+						Announce( "Luckily, " + tostake.NameSpan + " was in protective custoy when any angry mob (" + mob + ") came to try and stake them.");
 					}
 					else
 					{
-						Hub.Announce(tostake.NameSpan + " has been staked by an angry mob (" + mob + ")!  I hope he/she really was a vampire....");
+						Announce( tostake.NameSpan + " has been staked by an angry mob (" + mob + ")!  I hope he/she really was a vampire....");
 						tostake.IsDead = true;
 						if (tostake.IsMayor)
 						{
@@ -345,25 +366,25 @@ namespace WebApplication1.Models
 
 			if (!Players.Where(p => p.IsVampire && !p.IsDead).Any())
 			{
-				Hub.Announce("Well done! All the vampires are dead. The villagers live happily ever after.");
+				Announce( "Well done! All the vampires are dead. The villagers live happily ever after.");
 			}
 
 			if (!Players.Where(p => !p.IsVampire && !p.IsDead).Any())
 			{
-				Hub.Announce("Well done!  Everyone left alive is a vampire. You live happily ever after.");
+				Announce( "Well done!  Everyone left alive is a vampire. You live happily ever after.");
 			}
 
 			if (CurrentTurn().Id == 10)
 			{
-				Hub.Announce("After 10 days, the vampire hunter arrives to help. All remaining villagers are saved, and all remaining vampires are slain.");
+				Announce("After 10 days, the vampire hunter arrives to help. All remaining villagers are saved, and all remaining vampires are slain.");
 				var hunams = Players.Where(p => !p.IsVampire && !p.IsDead);
 				var list = PlayerListToString(hunams);
-				Hub.Announce("Well done, " + list);
+				Announce("Well done, " + list);
 				//var vamplist = Players.Where(p => p.IsVampire && !p.IsDead);
 			}
 
 			StartTurn();
-			Hub.SendStartNight(CurrentTurn().Id);
+			Hub.SendStartNight(this, CurrentTurn().Id);
 			GetNightInstructionsFromAIs();
 		}
 
@@ -383,6 +404,7 @@ namespace WebApplication1.Models
 
 	public class Player
 	{
+		public Game Game { get; set; }
 		public bool IsMayor { get; set; }
 		public bool IsVampire { get; set; }
 		public bool IsDead { get; set; }
@@ -402,8 +424,8 @@ namespace WebApplication1.Models
 		{
 			get
 			{
-				string[] cols = { "Red", "Blue", "Purple", "Green", "Brown", "Teal" };
-				var cid = Name.ToCharArray().Sum(x => (int)x) % cols.Count();
+				string[] cols = { "#0099ff", "#aa00ff", "#ff00cc", "#ff9900", "#77c900", "#00c977", "#00d000", "#aaaaaa" };
+				var cid = Name.ToCharArray().Sum(x => (int)x)  % cols.Count();
 				return cols[cid];
 			}
 		}

@@ -56,7 +56,7 @@ namespace WebApplication1.Models
 		{
 			if (r.Next() * 1.5 - .5 > Me.Bites - 1 && SuspicionAgainstMe < 2)
 			{
-				Hub.Send(Me.Id, "I've been bitten!");
+				Hub.Send(Me.Game.GameId, Me.Id, "I've been bitten!");
 				SuspicionAgainstMe += 1;
 			}
 		}
@@ -82,11 +82,11 @@ namespace WebApplication1.Models
 					stayedAtHome = !stayedAtHome;
 				if (stayedAtHome)
 				{
-					Hub.Send(Me.Id, Game.GetPlayer(LastNightAction.Whom).Name + " stayed at home");
+					Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(LastNightAction.Whom).Name + " stayed at home");
 				}
 				else
 				{
-					Hub.Send(Me.Id, Game.GetPlayer(LastNightAction.Whom).Name + " went out last night");
+					Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(LastNightAction.Whom).Name + " went out last night");
 				}
 			}
 		}
@@ -218,7 +218,7 @@ namespace WebApplication1.Models
 				)
 				)
 			{
-				Hub.Send(Me.Id, "I'm staying at home");
+				Hub.Send(Me.Game.GameId, Me.Id, "I'm staying at home");
 			}
 			LastNightAction = d;
 			return d;

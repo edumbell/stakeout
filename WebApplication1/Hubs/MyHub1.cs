@@ -9,14 +9,14 @@ namespace WebApplication1.Hubs
 {
 	public class StakeHub : Hub
 	{
-		public Player GetCurrentPlayer()
-		{
-			return Game.TheGame.Players.Where(p => p.ConnectionId == this.Context.ConnectionId).Single();
-		}
+		//public Player GetCurrentPlayer()
+		//{
+		//	return theGame.Players.Where(p => p.ConnectionId == this.Context.ConnectionId).Single();
+		//}
 
-		public void PushAllPlayerStatuses()
+		public void PushAllPlayerStatuses(Game theGame)
 		{
-			foreach (var p in Game.TheGame.Players.Where(p => p.Strategy == StrategyEnum.Human))
+			foreach (var p in theGame.Players.Where(p => p.Strategy == StrategyEnum.Human))
 			{
 				var html = p.NameSpan + " "
 					+ (p.IsMayor ? "M" : "")
@@ -32,14 +32,15 @@ namespace WebApplication1.Hubs
 				}
 				Clients.Client(p.ConnectionId).showPlayerStatus(html);
 			}
-			
-		}
-		public void AddAI()
-		{
-			string[] botNames = { "Zelda", "Xavier", "X-Ray", "Yehudi", "YolkFace", "Yasmin","Wade","Warrick", "Wanda", "123","456","789" };
 
-			var name = botNames[ new Random().Next(990) % botNames.Count()];
-			while (Game.TheGame.Players.Where(x => x.Name == name).Any())
+		}
+		public void AddAI(string gameId)
+		{
+			var theGame = Game.GetGame(gameId);
+			string[] botNames = { "Zelda", "Xavier", "X-Ray", "Yehudi", "YolkFace", "Yasmin", "Wade", "Warrick", "Wanda", "123", "456", "789" };
+
+			var name = botNames[new Random().Next(990) % botNames.Count()];
+			while (theGame.Players.Where(x => x.Name == name).Any())
 			{
 				name = botNames[new Random().Next(990) % botNames.Count()];
 			}
@@ -47,7 +48,8 @@ namespace WebApplication1.Hubs
 			var r = new Random();
 			var p = new Player()
 			{
-				Name =   name,
+				Game = theGame,
+				Name = name,
 				Strategy = StrategyEnum.AI,
 				Id = Guid.NewGuid().ToString()
 			};
@@ -56,55 +58,71 @@ namespace WebApplication1.Hubs
 					Hub = this,
 					Me = p
 				};
-			Game.TheGame.Players.Add(p);
+			theGame.Players.Add(p);
 			Clients.All.addNewMessageToPage(p.Name, "joined", p.Colour);
 		}
 
 
-		public void LinkConnectionToPlayer(string pid)
+		public void LinkConnectionToPlayer(string gameId, string pid)
 		{
-			var p = Game.GetPlayer(pid);
+			var theGame = Game.GetGame(gameId);
+			var p = theGame.GetPlayer(pid);
 			if (p != null)
 			{
 				p.ConnectionId = this.Context.ConnectionId;
 				Clients.All.addNewMessageToPage(p.Name, "joined", p.Colour);
 			}
+			var present = Game.PlayerListToString(theGame.Players.Except(new[] {p} ));
+			if (present.Any())
+			{
+				SendPrivate(p, present + " are already here.");
+			}
 		}
 
-		public void Announce(string message)
-		{
-			System.Threading.Thread.Sleep(300);
-			Clients.All.announce(message);
-		}
-
-		public void Send(string pid, string message)
+		public void Announce(Game game, string message)
 		{
 			System.Threading.Thread.Sleep(100);
-			var p = Game.GetPlayer(pid);
-			Clients.All.addNewMessageToPage(p.Name, message, p.Colour);
+			var all = AllClientsInGame(game);
+			foreach (var client in all)
+			{
+				client.announce(message);
+			}
 		}
 
-		public void CheckForRefresh()
+		public void Send(string gameId, string pid, string message)
 		{
-			if (Game.TheGame != null && Game.TheGame.HasStarted)
+			var theGame = Game.GetGame(gameId);
+			System.Threading.Thread.Sleep(100);
+			var p = theGame.GetPlayer(pid);
+			var all = AllClientsInGame(p.Game);
+			foreach (var client in all)
 			{
-				var player = GetCurrentPlayer();
+				client.addNewMessageToPage(p.Name, message, p.Colour);
+			}
+		}
+
+		public void CheckForRefresh(string gameId)
+		{
+			var theGame = Game.GetGame(gameId);
+			if (theGame != null && theGame.HasStarted)
+			{
 				var client = Clients.Client(this.Context.ConnectionId);
-				if (Game.TheGame.CurrentTurn().NightComplete)
-					client.startDay(Game.TheGame.CurrentTurn().Id);
+				if (theGame.CurrentTurn().NightComplete)
+					client.startDay(theGame.CurrentTurn().Id);
 				else
-					client.startNight(Game.TheGame.CurrentTurn().Id);
+					client.startNight(theGame.CurrentTurn().Id);
 			}
 		}
 
 
-		public void Start()
+		public void Start(string gameId)
 		{
-			if (!Game.TheGame.HasStarted)
+			var theGame = Game.GetGame(gameId);
+			if (!theGame.HasStarted)
 			{
-				Game.TheGame.StartGame(this);
-				PushAllPlayerStatuses();
-				foreach (var p in Game.TheGame.Players)
+				theGame.StartGame(this);
+				PushAllPlayerStatuses(theGame);
+				foreach (var p in theGame.Players)
 				{
 					if (p.IsVampire)
 					{
@@ -115,84 +133,112 @@ namespace WebApplication1.Hubs
 						SendPrivate(p, "You are a villager.  Don't act suspiciously, becuase there is at least one vampire in the village, and only you know for sure that you aren't a vampire.");
 					}
 				}
-				var mayor = Game.TheGame.Players.Where(x => x.IsMayor).Single();
-				Announce(mayor.Name + " is the mayor (gets to decide split votes).  Let's hope " + mayor.Name + " isn't a vampire!");
-				Clients.All.gameStarted();
-				SendStartNight(1);
-				Game.TheGame.GetNightInstructionsFromAIs();
+				var mayor = theGame.Players.Where(x => x.IsMayor).Single();
+				Announce(theGame, mayor.Name + " is the mayor (gets to decide split votes).  Let's hope " + mayor.Name + " isn't a vampire!");
+
+				var all = AllClientsInGame(theGame);
+				foreach (var client in all)
+				{
+					client.gameStarted();
+				}
+
+				SendStartNight(theGame, 1);
+				theGame.GetNightInstructionsFromAIs();
 			}
 		}
 
-		public void SendStartNight(int id)
+		public void SendStartNight(Game game, int id)
 		{
-			Clients.All.startNIght(id);
+			var all = AllClientsInGame(game);
+			foreach (var client in all)
+			{
+				client.startNIght(id);
+			}
 			string msg = "------------- Night " + (id);
 			Clients.All.privateMessage(msg);
-			Announce(msg);
+			Announce(game, msg);
 		}
 
-		public void SendStartDay(int id)
+		public void SendStartDay(Game game, int id)
 		{
 			Clients.All.startDay(id);
-			PushAllPlayerStatuses();
+			PushAllPlayerStatuses(game);
 			var msg = "-----===----- Morning " + (id);
-			Clients.All.privateMessage(msg);
-			Announce(msg);
+			var all = AllClientsInGame(game);
+			foreach (var client in all)
+			{
+				client.privateMessage(msg);
+			}
+			Announce(game, msg);
 		}
 
-		public void DisplayVotes(double needed)
+		public void DisplayVotes(Game game, double needed)
 		{
 			string result = "";
-			foreach (var p in Game.TheGame.MobilePlayers)
+			foreach (var p in game.MobilePlayers)
 			{
-				var jailMeVoters = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Select(x => x.Actor);
-				var jailMeWeight = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Sum(d => d.Weight);
+				var jailMeVoters = game.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Select(x => x.Actor);
+				var jailMeWeight = game.CurrentTurn().DayInstructions.Where(d => d.JailVote == p).Sum(d => d.Weight);
 				var passedClass = jailMeWeight >= needed ? "passed" : "";
 				var verb = jailMeWeight >= needed ? "passed by" : "proposed by";
 				if (jailMeVoters.Any())
 				{
-					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Jail " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.TheGame.PlayerListToString(jailMeVoters, ", ") + "</span></div>";
+					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Jail " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.PlayerListToString(jailMeVoters, ", ") + "</span></div>";
 				}
 			}
 
-			foreach (var p in Game.TheGame.MobilePlayers)
+			foreach (var p in game.MobilePlayers)
 			{
-				var stakeMeVoters = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Select(x => x.Actor);
-				var stakeMeWeight = Game.TheGame.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Sum(d => d.Weight);
+				var stakeMeVoters = game.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Select(x => x.Actor);
+				var stakeMeWeight = game.CurrentTurn().DayInstructions.Where(d => d.StakeVote == p).Sum(d => d.Weight);
 				var passedClass = stakeMeWeight >= needed ? "passed" : "";
 				var verb = stakeMeWeight >= needed ? "passed by" : "proposed by";
 				if (stakeMeVoters.Any())
 				{
-					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Stake " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.TheGame.PlayerListToString(stakeMeVoters, ", ") + "</span></div>";
+					result += "<div class=\"" + passedClass + "\"><span class=\"voteleft\">Stake " + p.NameSpan + "</span><span class=\"voteright\"><span class=\"help\"> " + verb + " </span> " + Game.PlayerListToString(stakeMeVoters, ", ") + "</span></div>";
 				}
 			}
-			Clients.All.displayActionsEntered(result);
+			var all = AllClientsInGame(game);
+			foreach (var client in all)
+			{
+				client.displayActionsEntered(result);
+			}
 		}
 
-		public void DisplayNightActionsEntered()
+		public void DisplayNightActionsEntered(Game theGame)
 		{
-			var entered = Game.TheGame.CurrentTurn().NightInstructions.Select(x => x.Actor);
-			var stillToEnter = Game.TheGame.MobilePlayers.Except(
+			var entered = theGame.CurrentTurn().NightInstructions.Select(x => x.Actor);
+			var stillToEnter = theGame.MobilePlayers.Except(
 				entered);
+
+			string msg = "";
 			if (stillToEnter.Any())
 			{
-				Clients.All.displayWaitingOn("Still waiting on: " + Game.TheGame.PlayerListToString(stillToEnter));
+				msg = "Still waiting on: " + Game.PlayerListToString(stillToEnter);
 			}
-			else
+			var all = AllClientsInGame(theGame);
+			foreach (var client in all)
 			{
-				Clients.All.displayWaitingOn("");
+				client.displayWaitingOn(msg);
 			}
 		}
 
 
 		public void SendPrivate(Player player, string message)
 		{
-			
+
 			if (player.Strategy == StrategyEnum.Human)
 			{
 				System.Threading.Thread.Sleep(10);
 				Clients.Client(player.ConnectionId).privateMessage(message);
 			}
+		}
+
+		private IEnumerable<dynamic> AllClientsInGame(Game game)
+		{
+			var result = game.Players.Where(p => p.Strategy == StrategyEnum.Human)
+				.Select(p => Clients.Client(p.ConnectionId));
+			return result;
 		}
 
 	}

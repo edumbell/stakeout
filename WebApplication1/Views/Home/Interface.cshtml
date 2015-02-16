@@ -9,16 +9,20 @@
 	<script src="~/signalr/hubs"></script>
 	<script>
 		var _pid = '@(Model.PlayerId)';
+		var _gameId = '@Model.GameId';
 
 		function getActions() {
 			$.ajax({
 				url: '@Url.Action("GetActions", "Home")',
-				data: { pid: _pid },
+				data: { pid: _pid, gameId: _gameId },
 				cache: false,
 				type: "POST",
 				dataType: "html",
 				success: function (data, textStatus, XMLHttpRequest) {
 					$(".actions").html(data);
+				},
+				failure: function (data, textStatus, XMLHttpRequest) {
+					console.log(data);
 				}
 			});
 		}
@@ -107,21 +111,29 @@
 			};
 
 			$.connection.hub.start().done(function () {
-				hub.server.linkConnectionToPlayer(_pid).then(function () {
-					$.connection.stakeHub.server.checkForRefresh();
+				console.log('connected');
+				hub.server.linkConnectionToPlayer(_gameId, _pid).then(function () {
+					console.log('linked');
+					$.connection.stakeHub.server.checkForRefresh(_gameId);
+				});
+
+				$('#message').keypress(function (ev) {
+					if (ev.which === 13) {
+						$('#sendmessage').click();
+					}
 				});
 
 				$('#sendmessage').click(function () {
 					// Call the Send method on the hub.
-					hub.server.send(_pid, $('#message').val());
+					hub.server.send(_gameId, _pid, $('#message').val());
 					// Clear text box and reset focus for next comment.
 					$('#message').val('').focus();
 				});
 				$(".start-button").click(function () {
-					hub.server.start();
+					hub.server.start(_gameId);
 				});
 				$(".ai-button").click(function () {
-					hub.server.addAI();
+					hub.server.addAI(_gameId);
 				});
 
 			});
@@ -135,13 +147,11 @@
 			});
 
 			$("#chbShowHelp").change(function () {
-				
-				if ($("#chbShowHelp:checked").length > 0)
-				{
+
+				if ($("#chbShowHelp:checked").length > 0) {
 					$("body").addClass("show-help");
 				}
-				else
-				{
+				else {
 					$("body").removeClass("show-help");
 				}
 			});
@@ -222,10 +232,10 @@
 
 <hr />
 <label class="control-label">
-	<input type="checkbox" checked="checked" id="chbShowHelp"  class="checkbox-inline"/>
+	<input type="checkbox" checked="checked" id="chbShowHelp" class="checkbox-inline" />
 	Show help
 </label>
-<br/>
+<br />
 <label class="control-label">
 	Font size
 	<select class="select" id="selFontSize">

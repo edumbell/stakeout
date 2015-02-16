@@ -15,79 +15,112 @@ namespace WebApplication1.Controllers
 			return View();
 		}
 
+		public ActionResult CreateGame(CreateGameModel model)
+		{
+			var existing = Game.GameList.Where(g => g.Name == model.Name).FirstOrDefault();
+			if (existing == null)
+			{
+
+				var newGame = new Game()
+				{
+					Name = model.Name,
+					GameId = Guid.NewGuid().ToString()
+				};
+				Game.GameList.Add(newGame);
+
+				var joinModel = new JoinModel()
+				{
+					Name = model.PlayerName,
+					GameId = newGame.GameId
+				};
+				return Join(joinModel);
+			}
+			else
+			{
+				var joinModel = new JoinModel()
+				{
+					Name = model.PlayerName,
+					GameId = existing.GameId
+				};
+				return Join(joinModel);
+			}
+
+		}
+
 		public ActionResult Join(JoinModel model)
 		{
+			var theGame = Game.GetGame(model.GameId);
 			if (model.Name == null)
 				throw new Exception("Tried to join with null name?");
-			var existing = Game.TheGame.Players.Where(p => p.Name == model.Name).FirstOrDefault();
+			var existing = theGame.Players.Where(p => p.Name == model.Name).FirstOrDefault();
 			if (existing != null)
 			{
 				return View("Interface", new StartGameModel()
 				{
-					PlayerId = existing.Id
+					PlayerId = existing.Id,
+					GameId = model.GameId
 				});
 			}
 
-			if (Game.TheGame.HasStarted)
+			if (theGame.HasStarted)
 			{
-				throw new Exception("Game has already started");
+				return Content("Game has already started");
 			}
 			var player = new Player()
 			{
+				Game = theGame,
 				Bites = 0,
 				Name = model.Name,
 				Strategy = StrategyEnum.Human,
 				Id = Guid.NewGuid().ToString()
 			};
-			Game.TheGame.Players.Add(player);
+			theGame.Players.Add(player);
 			return View("Interface", new StartGameModel()
 			{
-				PlayerId = player.Id
+				PlayerId = player.Id,
+				GameId = model.GameId
 			});
 
 		}
 
 		public ActionResult DayInstruction(DayFormModel model)
 		{
-			if (Game.TheGame.CurrentTurn().DayComplete
-	|| Game.TheGame.CurrentTurn().Id != model.TurnId)
+			var theGame = Game.GetGame(model.GameId);
+			if (theGame.CurrentTurn().DayComplete
+	|| theGame.CurrentTurn().Id != model.TurnId)
 				return Content("Turn already complete! Did you use the back button in your browser??");
 			else
 			{
-				var instruction = new DayInstruction(Game.TheGame, model);
-				Game.TheGame.ProcessDayInstruction(instruction);
+				var instruction = new DayInstruction(theGame, model);
+				theGame.ProcessDayInstruction(instruction);
 				return Content(null);
 			}
 		}
 
 		public ActionResult NightInstruction(NightFormModel model)
 		{
-			if (Game.TheGame.CurrentTurn().NightComplete
-				|| Game.TheGame.CurrentTurn().Id != model.TurnId)
+			var theGame = Game.GetGame(model.GameId);
+			if (theGame.CurrentTurn().NightComplete
+				|| theGame.CurrentTurn().Id != model.TurnId)
 				return Content("Turn already complete! Did you use the back button in your browser??");
 			else
 			{
-				var instruction = new NightInstruction(Game.TheGame, model);
-				Game.TheGame.ProcessNightInstruction(instruction);
+				var instruction = new NightInstruction(theGame, model);
+				theGame.ProcessNightInstruction(instruction);
 				return Content(null);
 			}
 		}
 
-		public ActionResult Restart()
+		public ActionResult GetActions(string gameId, string pid)
 		{
-			Game.TheGame = new Game();
-			return Content("Restarted");
-		}
-
-		public ActionResult GetActions(string pid)
-		{
-			var player = Game.GetPlayer(pid);
+			var theGame = Game.GetGame(gameId);
+			var player = theGame.GetPlayer(pid);
 			if (player.IsDead)
 			{
 				return Content("You have been staked.  But don't worry, as a ghost, you can observe everything that goes on.... [coming soon]");
 			}
 
-			if (!Game.TheGame.CurrentTurn().NightComplete)
+			if (!theGame.CurrentTurn().NightComplete)
 			{
 				if (player.IsInJail)
 				{
@@ -97,22 +130,24 @@ namespace WebApplication1.Controllers
 				{
 					var model = new NightFormModel()
 					{
+						GameId = gameId,
 						ActorId = player.Id,
-						OtherPlayers = Game.TheGame.MobilePlayers.Exclude(pid).ToSelectList(),
+						OtherPlayers = theGame.MobilePlayers.Exclude(pid).ToSelectList(),
 						IsVampire = player.IsVampire,
-						TurnId = Game.TheGame.CurrentTurn().Id
+						TurnId = theGame.CurrentTurn().Id
 					};
 					return PartialView("_NightActions", model);
 				}
 			}
-			else if (!Game.TheGame.CurrentTurn().DayComplete)
+			else if (!theGame.CurrentTurn().DayComplete)
 			{
 				var model = new DayFormModel()
 	{
+		GameId = gameId,
 		ActorId = player.Id,
-		OtherPlayers = Game.TheGame.MobilePlayers.Exclude(pid).ToSelectList(),
-		AllPlayers = Game.TheGame.MobilePlayers.ToSelectList(),
-		TurnId = Game.TheGame.CurrentTurn().Id
+		OtherPlayers = theGame.MobilePlayers.Exclude(pid).ToSelectList(),
+		AllPlayers = theGame.MobilePlayers.ToSelectList(),
+		TurnId = theGame.CurrentTurn().Id
 	};
 
 				return PartialView("_DayActions", model);

@@ -9,7 +9,7 @@ namespace WebApplication1.Models
 	public class NightFormModel
 	{
 
-
+		public string GameId { get; set; }
 		public IEnumerable<System.Web.Mvc.SelectListItem> OtherPlayers { get; set; }
 		public int TurnId { get; set; }
 		public string ActorId { get; set; }
@@ -20,6 +20,7 @@ namespace WebApplication1.Models
 
 	public class DayFormModel
 	{
+		public string GameId { get; set; }
 		public int TurnId { get; set; }
 		public string ActorId { get; set; }
 		public IEnumerable<System.Web.Mvc.SelectListItem> OtherPlayers { get; set; }

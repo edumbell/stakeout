@@ -10,6 +10,7 @@
 </p>
 @using (Ajax.BeginForm("NightInstruction", null, new AjaxOptions { OnFailure="debug(xhr,status)", OnBegin = "clearForm()" }, new { @class = "form-horizontal" }))
 {
+	@Html.HiddenFor(m => m.GameId)
 	@Html.HiddenFor(m => m.TurnId)
 	@Html.HiddenFor(m => m.ActorId)
 	@Html.HiddenFor(m => m.IsVampire)

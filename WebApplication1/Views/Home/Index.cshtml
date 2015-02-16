@@ -1,17 +1,106 @@
-﻿@model WebApplication1.Models.JoinModel
+﻿@model WebApplication1.Models.CreateGameModel
 @{
 	ViewBag.Title = "Home Page";
 }
+@section scripts {
+	<script>
+		$(function () {
+			$(".join-game").click(function () {
+				var gid = $(this).attr("data-game-id");
+				var name = $(".name-wrapper input").val();
+				if (name.length < 1) {
+					alert('please enter your name');
+				}
+				else {
+					var href = "/join?GameId=" + gid + "&Name=" + name;
+					window.location.href = href;
+				}
+			});
+		});
+	</script>
+}
+<strong class="pull-right">
+	Last updated 16 Feb
+</strong>
+<h2>Welcome to Stake-Out</h2>
+<h3 style="color:#dd0033">&lsquo;It takes a village&rsquo;</h3>
 
-<div class="jumbotron">
-	<h1>Join Stakeout game</h1>
-	@Html.ValidationSummary(false)
-	<br />
-	@using (Html.BeginForm("Join", "Home"))
+
+@Html.ValidationSummary(false)
+<br />
+
+@using (Html.BeginForm("CreateGame", "Home"))
+{
+	<div class="form-group name-wrapper">
+		@Html.LabelFor(m => m.PlayerName, new { @class = "form-label" })
+		@Html.TextBoxFor(m => m.PlayerName, new { @class = "form-control" })
+	</div>
+	<hr />
+	<div class="well">
+		<h2>Create a new game</h2>
+		<div class="form-group">
+			@Html.LabelFor(m => m.Name, new { @class = "form-label" })
+			@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+			<button type="submit" class="btn btn-primary">Create</button>
+		</div>
+	</div>
+
+}
+
+<div class="well">
+	<h2>Join an existing game</h2>
+	@if (!WebApplication1.Models.Game.GameList.Any())
 	{
-		@Html.LabelFor(m => m.Name, new { @class = "form-label" })
-		@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
-		<br />
-		<button type="submit" class="btn btn-lg btn-primary">Join</button>
+		<text>
+			(No games have been created.)
+		</text>
+
+	}
+	else
+	{ 
+	<div class="container">
+		<div class="row">
+			<div class="col-xs-8 col-sm-4">
+				<strong>
+					Game (humans / bots)
+				</strong>
+			</div>
+			<div class="col-xs-4">
+
+			</div>
+		</div>
+		@foreach (var g in WebApplication1.Models.Game.GameList)
+		{
+
+			<div class="row" style="margin-bottom:5px">
+				<div class="col-xs-8 col-sm-4">
+					@g.Name
+					(@(g.GetNumHumans())/@(g.GetNumBots()))
+				</div>
+				<div class="col-xs-4">
+					@if (!g.HasStarted)
+					{
+						<button class="btn btn-primary join-game" data-game-id="@g.GameId"> Join</button>
+					}
+					else
+					{
+						<text>
+							(in progress)
+						</text>
+					}
+				</div>
+			</div>
+		}
+
+	</div>
 	}
 </div>
+
+<h3>Notes</h3>
+<ul>
+	<li>
+		If the server is left idle for 20 minutes, it will forget all games and players
+	</li>
+	<li>You can join the same game as 2 humans by opening this page in a new browser tab.  (This is of course totally cheating, but useful for playtesting)</li>
+</ul>
+

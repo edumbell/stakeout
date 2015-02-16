@@ -179,7 +179,7 @@
     <Compile Include="Models\Game.cs" />
     <Compile Include="Models\IdentityModels.cs" />
     <Compile Include="Models\AI.cs" />
-    <Compile Include="Models\Join.cs" />
+    <Compile Include="Models\StartAndJoinModels.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Startup.cs" />
   </ItemGroup>
@@ -235,6 +235,7 @@
     <Content Include="Views\Shared\_LoginPartial.cshtml" />
     <Content Include="Views\Home\_NightActions.cshtml" />
     <Content Include="Views\Home\_DayActions.cshtml" />
+    <Content Include="Views\Home\JoinGame.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
