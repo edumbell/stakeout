@@ -59,7 +59,7 @@ namespace WebApplication1.Hubs
 					Me = p
 				};
 			theGame.Players.Add(p);
-			Clients.All.addNewMessageToPage(p.Name, "joined", p.Colour);
+			Announce(theGame, p.NameSpan + " (a bot) joined");
 		}
 
 
@@ -68,11 +68,15 @@ namespace WebApplication1.Hubs
 			var theGame = Game.GetGame(gameId);
 			var p = theGame.GetPlayer(pid);
 			if (p != null)
-			{
+		{	
 				p.ConnectionId = this.Context.ConnectionId;
-				Clients.All.addNewMessageToPage(p.Name, "joined", p.Colour);
+
+				var all = AllClientsInGame(theGame);
+
+				Announce(theGame, p.NameSpan + " joined");
+
 			}
-			var present = Game.PlayerListToString(theGame.Players.Except(new[] {p} ));
+			var present = Game.PlayerListToString(theGame.Players.Except(new[] { p }));
 			if (present.Any())
 			{
 				SendPrivate(p, present + " are already here.");
@@ -97,7 +101,10 @@ namespace WebApplication1.Hubs
 			var all = AllClientsInGame(p.Game);
 			foreach (var client in all)
 			{
-				client.addNewMessageToPage(p.Name, message, p.Colour);
+
+				client.addNewMessageToPage(p.Name +
+					(p.IsDead ? "'s ghost" : "")
+					, message, p.Colour);
 			}
 		}
 
@@ -150,25 +157,25 @@ namespace WebApplication1.Hubs
 		public void SendStartNight(Game game, int id)
 		{
 			var all = AllClientsInGame(game);
+			string msg = "------------- Night " + (id);
 			foreach (var client in all)
 			{
 				client.startNIght(id);
+				client.privateMessage(msg);
 			}
-			string msg = "------------- Night " + (id);
-			Clients.All.privateMessage(msg);
 			Announce(game, msg);
 		}
 
 		public void SendStartDay(Game game, int id)
 		{
-			Clients.All.startDay(id);
-			PushAllPlayerStatuses(game);
-			var msg = "-----===----- Morning " + (id);
 			var all = AllClientsInGame(game);
+			var msg = "-----===----- Morning " + (id);
 			foreach (var client in all)
 			{
+				client.startDay(id);
 				client.privateMessage(msg);
 			}
+			PushAllPlayerStatuses(game);
 			Announce(game, msg);
 		}
 

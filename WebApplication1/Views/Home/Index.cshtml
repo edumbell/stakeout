@@ -34,6 +34,7 @@
 	<div class="form-group name-wrapper">
 		@Html.LabelFor(m => m.PlayerName, new { @class = "form-label" })
 		@Html.TextBoxFor(m => m.PlayerName, new { @class = "form-control" })
+		@Html.ValidationMessageFor(m => m.PlayerName)
 	</div>
 	<hr />
 	<div class="well">
@@ -41,6 +42,7 @@
 		<div class="form-group">
 			@Html.LabelFor(m => m.Name, new { @class = "form-label" })
 			@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+			@Html.ValidationMessageFor(m => m.Name)
 			<button type="submit" class="btn btn-primary">Create</button>
 		</div>
 	</div>
@@ -57,45 +59,45 @@
 
 	}
 	else
-	{ 
-	<div class="container">
-		<div class="row">
-			<div class="col-xs-8 col-sm-4">
-				<strong>
-					Game (humans / bots)
-				</strong>
-			</div>
-			<div class="col-xs-4">
-
-			</div>
-		</div>
-		@foreach (var g in WebApplication1.Models.Game.GameList)
-		{
-
-			<div class="row" style="margin-bottom:5px">
+	{
+		<div class="container">
+			<div class="row">
 				<div class="col-xs-8 col-sm-4">
-					@g.Name
-					(@(g.GetNumHumans())/@(g.GetNumBots()))
+					<strong>
+						Game (humans / bots)
+					</strong>
 				</div>
 				<div class="col-xs-4">
-					@if (!g.HasStarted)
-					{
-						<button class="btn btn-primary join-game" data-game-id="@g.GameId"> Join</button>
-					}
-					else
-					{
-						<text>
-							(in progress)
-						</text>
-					}
+
 				</div>
 			</div>
-		}
+			@foreach (var g in WebApplication1.Models.Game.GameList)
+			{
 
-	</div>
+				<div class="row" style="margin-bottom:5px">
+					<div class="col-xs-8 col-sm-4">
+						@g.Name
+						(@(g.GetNumHumans())/@(g.GetNumBots()))
+					</div>
+					<div class="col-xs-4">
+						@if (!g.HasStarted)
+						{
+							<button class="btn btn-primary join-game" data-game-id="@g.GameId"> Join</button>
+						}
+						else
+						{
+							<text>
+								@(g.GameOver ? g.OverMessage + " x " : "(in progress)")
+							</text>
+						}
+					</div>
+				</div>
+			}
+
+		</div>
 	}
 </div>
-
+<hr />
 <h3>Notes</h3>
 <ul>
 	<li>
@@ -103,4 +105,5 @@
 	</li>
 	<li>You can join the same game as 2 humans by opening this page in a new browser tab.  (This is of course totally cheating, but useful for playtesting)</li>
 </ul>
-
+<hr />
+@Html.Partial("ChangeLog")

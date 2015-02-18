@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 namespace WebApplication1.Models
 {
@@ -10,9 +11,11 @@ namespace WebApplication1.Models
 	public class CreateGameModel
 	{
 		[DisplayName("Your Name")]
+		[Required(ErrorMessage = "And by what name shall we know you?")]
 		public string PlayerName { get; set; }
 
 		[DisplayName("Game Name")]
+		[Required (ErrorMessage="Please enter a name for your game")]
 		public string Name { get; set; }
 
 	}

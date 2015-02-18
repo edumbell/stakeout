@@ -177,6 +177,7 @@
     <Compile Include="Models\ActionFormModels.cs" />
     <Compile Include="Models\Extensions.cs" />
     <Compile Include="Models\Game.cs" />
+    <Compile Include="Models\GameLog.cs" />
     <Compile Include="Models\IdentityModels.cs" />
     <Compile Include="Models\AI.cs" />
     <Compile Include="Models\StartAndJoinModels.cs" />
@@ -236,6 +237,7 @@
     <Content Include="Views\Home\_NightActions.cshtml" />
     <Content Include="Views\Home\_DayActions.cshtml" />
     <Content Include="Views\Home\JoinGame.cshtml" />
+    <Content Include="Views\Home\ChangeLog.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
