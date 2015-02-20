@@ -39,13 +39,24 @@
 	<hr />
 	<div class="well">
 		<h2>Create a new game</h2>
+		<br/>
 		<div class="form-group">
-			@Html.LabelFor(m => m.Name, new { @class = "form-label" })
-			@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
-			@Html.ValidationMessageFor(m => m.Name)
-			<button type="submit" class="btn btn-primary">Create</button>
+			<label class="control-label">
+				@Html.CheckBoxFor(m => m.DebugAllowed, new { @class = "checkbox pull-left" })
+				&nbsp;
+				Debug mode? (Can view bot reasoning, etc.)
+			</label>
+			</div>
+
+			<div class="form-group">
+				
+				@Html.LabelFor(m => m.Name, new { @class = "form-label" })
+				@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+				@Html.ValidationMessageFor(m => m.Name)
+				
+			</div>
+		<button type="submit" class="btn btn-primary">Create</button>
 		</div>
-	</div>
 
 }
 

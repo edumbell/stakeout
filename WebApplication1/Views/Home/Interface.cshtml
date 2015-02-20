@@ -11,6 +11,38 @@
 		var _pid = '@(Model.PlayerId)';
 		var _gameId = '@Model.GameId';
 
+		function getPlayerList() {
+			$.ajax({
+				url: '@Url.Action("GetPlayerList", "Home")',
+				data: { gameId: _gameId },
+				cache: false,
+				type: "GET",
+				dataType: "html",
+				success: function (data, textStatus, XMLHttpRequest) {
+					$(".player-list").html(data);
+				},
+				failure: function (data, textStatus, XMLHttpRequest) {
+					console.log(data);
+				}
+			});
+		}
+
+		function getDebug(pid) {
+			$.ajax({
+				url: '@Url.Action("GetDebug", "Home")',
+				data: { gameId: _gameId, playerId: pid },
+				cache: false,
+				type: "GET",
+				dataType: "html",
+				success: function (data, textStatus, XMLHttpRequest) {
+					$(".debug").html(data);
+				},
+				failure: function (data, textStatus, XMLHttpRequest) {
+					console.log(data);
+				}
+			});
+		}
+
 		function getActions() {
 			$.ajax({
 				url: '@Url.Action("GetActions", "Home")',
@@ -48,6 +80,17 @@
 		}
 
 		$(function () {
+
+			@if (Model.DebugAllowed)
+			{
+			<text>
+			$("body").on("click", ".player-debug", function () {
+				var pid = $(this).attr("data-pid");
+				getDebug(pid);
+			});
+			</text>
+			}
+
 			// Reference the auto-generated proxy for the hub.
 			var hub = $.connection.stakeHub;
 			// Create a function that the hub can call back to display messages.
@@ -86,8 +129,9 @@
 			hub.client.startNight = function (turn) {
 				$("body").addClass("sun");
 				setTimeout(function () { $("body").addClass("dusk"); }, 2000);
-				setTimeout(function () { $("body").addClass("night"); }, 4000);
+				setTimeout(function () { $("body").addClass("night"); }, 2000);
 				setStatus("It is night time (day " + turn + ")");
+				getPlayerList();
 				getActions();
 			};
 
@@ -97,6 +141,7 @@
 				setTimeout(function () { $("body").removeClass("dusk"); }, 2000);
 				setTimeout(function () { $("body").removeClass("sun"); }, 4000);
 				setStatus("It is the morning of day " + turn);
+				getPlayerList();
 				getActions();
 			};
 
@@ -226,10 +271,18 @@
 
 			</div>
 		</fieldset>
+		<fieldset>
+			<legend>Player statuses</legend>
+			<div class="player-list">
+
+			</div>
+		</fieldset>
 	</div>
 
 </div>
+<div class="debug">
 
+</div>
 <hr />
 <label class="control-label">
 	<input type="checkbox" checked="checked" id="chbShowHelp" class="checkbox-inline" />

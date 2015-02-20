@@ -20,9 +20,11 @@ namespace WebApplication1.Controllers
 			var existing = Game.GameList.Where(g => g.Name == model.Name).FirstOrDefault();
 			if (existing == null)
 			{
-
+				if (string.IsNullOrEmpty(model.Name))
+					model.Name = model.PlayerName + " " + DateTime.Now.ToString("hh:mm");
 				var newGame = new Game()
 				{
+					DebugAllowed = model.DebugAllowed,
 					Name = model.Name,
 					GameId = Guid.NewGuid().ToString()
 				};
@@ -58,7 +60,8 @@ namespace WebApplication1.Controllers
 				return View("Interface", new StartGameModel()
 				{
 					PlayerId = existing.Id,
-					GameId = model.GameId
+					GameId = model.GameId,
+					DebugAllowed = theGame.DebugAllowed
 				});
 			}
 
@@ -78,9 +81,53 @@ namespace WebApplication1.Controllers
 			return View("Interface", new StartGameModel()
 			{
 				PlayerId = player.Id,
-				GameId = model.GameId
+				GameId = model.GameId,
+				DebugAllowed = theGame.DebugAllowed
 			});
 
+		}
+		public ActionResult GetPlayerList(string gameId)
+		{
+			var game = Game.GameList.Where(g => g.GameId == gameId).Single();
+			return PartialView("_PlayerList", game);
+		}
+
+		public ActionResult GetDebug(string gameId, string playerId)
+		{
+			var game = Game.GameList.Where(g => g.GameId == gameId).Single();
+			if (!game.DebugAllowed)
+			{
+				return Content("Naughty naughty!");
+			}
+			var player = game.GetPlayer(playerId);
+			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player)
+				.OrderBy(l => l.Turn);
+			string currentTurn = "";
+			string logResult = "<span class='debug-heading'>Debug info for " + player.NameSpan + "</span><br/>";
+
+			if (player.Strategy == StrategyEnum.AI)
+			{
+				foreach (var r in player.AI.Relations)
+				{
+					var otherPlayer = game.GetPlayer(r.PlayerId);
+					string relation = otherPlayer.NameSpan;
+					relation += " <span class='enmity'>e:" + r.Enmity.ToString("0.0") + "</span>";
+					relation += " <span class='suspicion'>s:" + r.DarkSideSuspicion.ToString("0.0") + "</span>";
+					relation += " b " + r.GussedBites.ToString("0.0");
+					logResult += relation + "<br/>";
+				}
+			}
+
+			foreach (var log in allLogs)
+			{
+				if (log.Turn != currentTurn)
+				{
+					currentTurn = log.Turn;
+					logResult += currentTurn + "<br/>";
+				}
+				logResult += log.ToString() + "<br/>";
+			}
+			return Content(logResult);
 		}
 
 		public ActionResult DayInstruction(DayFormModel model)

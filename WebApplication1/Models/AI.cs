@@ -10,7 +10,8 @@ namespace WebApplication1.Models
 		public string PlayerId { get; set; }
 		public double Enmity { get; set; }
 		public double DarkSideSuspicion { get; set; }
-		public double Bites { get; set; }
+		public double KnownBites { get; set; }
+		public double GussedBites { get; set; }
 		public bool KnownVampire { get; set; }
 	}
 
@@ -19,10 +20,10 @@ namespace WebApplication1.Models
 		public Player Me { get; set; }
 		public double SuspicionAgainstMe = 0;
 
-		private List<Relation> Relations = new List<Relation>();
+		public List<Relation> Relations = new List<Relation>();
 
 		private NightFormModel LastNightAction { get; set; }
-		private bool LastNightAnnouncedSleep { get; set; }
+		private List<string> LastNightAnnouncedSleep { get; set; }
 		//private NightFormModel LastNightAction { get; set; }
 
 		public Hubs.StakeHub Hub { get; set; }
@@ -31,7 +32,25 @@ namespace WebApplication1.Models
 
 		private Relation Relation(string id)
 		{
-			return Relations.Where(x => x.PlayerId == id).Single();
+			if (id == Me.Id)
+			{
+				return new Relation()
+				{
+					Enmity = -100,
+					GussedBites = Me.Bites,
+					DarkSideSuspicion = Me.IsVampire ? 1 : -1,
+					PlayerId = Me.Id
+				};
+			}
+			var result = Relations.Where(x => x.PlayerId == id).FirstOrDefault();
+			if (result == null)
+			{
+				result = new Relation() { PlayerId = id };
+				Relations.Add(result);
+			}
+			return result;
+
+
 		}
 
 
@@ -52,28 +71,45 @@ namespace WebApplication1.Models
 			foreach (var x in Relations)
 			{
 				x.Enmity = x.Enmity * .8;
+				x.GussedBites = x.GussedBites + .1;
+				if (x.DarkSideSuspicion < x.GussedBites-1)
+					x.DarkSideSuspicion = x.GussedBites-1;
 			}
 		}
+
 
 		public void TellFellowVampire(string pid)
 		{
 			Relation(pid).KnownVampire = true;
-			Relation(pid).Enmity = -3;
+			Relation(pid).Enmity = -1;
+			Relation(pid).DarkSideSuspicion += 10;
 		}
 
-		public void TellBitten()
+		public void OnMeBitten()
 		{
 			if (r.NextDouble() * 1.5 - .5 > Me.Bites - 1 && SuspicionAgainstMe < 2)
 			{
-				AnnounceBitten(true);
+				AnnounceMeBitten(true);
 				SuspicionAgainstMe += 1;
 			}
+			// todo: figure out who we know was at home - requires remembering all night's events
+			foreach (var rel in Relations)
+			{
+				if (Me.Game.JailedPlayer == null || Me.Game.JailedPlayer.Id != rel.PlayerId)
+				{
+					// player was active - 
+					rel.DarkSideSuspicion += .5;					
+				}
+			}
+			
 		}
 
-		public void AnnounceBitten(bool isTrue)
+		public void AnnounceMeBitten(bool isTrue)
 		{
+			var comms = new CommsEvent(Me, CommsTypeEnum.IWasBitten, ! isTrue);
+			Me.Game.AnnounceToAIs(comms);
 			Hub.Send(Me.Game.GameId, Me.Id, "I've been bitten!");
-			Me.Game.AddToLog(Me, CommsTypeEnum.IWasBitten, isTrue);
+			Me.Game.AddToLog(comms);
 		}
 
 		public void TellStakeVote(string id)
@@ -81,25 +117,35 @@ namespace WebApplication1.Models
 			Relation(id).Enmity++;
 		}
 
-		public void TellWatchResult(bool stayedAtHome, bool metAny)
+		public void ReceiveWatchResult(bool stayedAtHome, bool metAny)
 		{
-			
+
 			if (LastNightAction.Action == NightActionEnum.Watch || LastNightAction.Action == NightActionEnum.Bite)
 			{
-				var whomRelation = Relations.Where(x => x.PlayerId == LastNightAction.Whom).Single();
+				var whomRelation = Relation(LastNightAction.Whom);
 
 				// set suspicion based on observation
-				if (Me.IsVampire)
+				//if (Me.IsVampire)
+				//{
+				if (stayedAtHome)
 				{
-					if (stayedAtHome)
-						whomRelation.DarkSideSuspicion -= .3;
-					else
-						whomRelation.DarkSideSuspicion += .4;
+					whomRelation.DarkSideSuspicion -= .3;
 				}
+				else if (LastNightAnnouncedSleep.Contains(whomRelation.PlayerId))
+				{
+					// went out, and lied about it
+					whomRelation.DarkSideSuspicion += 1;
+				}
+				else
+				{
+					// went out, but didn't lie about it
+					whomRelation.DarkSideSuspicion += .3;
+				}
+				//}
 
 
 				// before going any futher:  never claim to know anything if we claimed we were staying home!
-				if (LastNightAnnouncedSleep)
+				if (LastNightAnnouncedSleep.Contains(Me.Id))
 					return;
 
 				// work out whether/what to announce
@@ -122,6 +168,8 @@ namespace WebApplication1.Models
 					{
 						stayedAtHome = false;
 						announceWhom = PickEnemy(-100);
+						if (announceWhom == null)
+							announceWhom = RandomNotMe();
 					}
 					else if (r.NextDouble() > .95 || LastNightAction.Action == NightActionEnum.Bite)
 					{
@@ -137,20 +185,128 @@ namespace WebApplication1.Models
 				if (stayedAtHome)
 				{
 					Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(announceWhom).Name + " stayed at home");
-					Me.Game.AddToLog(Me, CommsTypeEnum.Slept, !lie, Me.Game.GetPlayer(announceWhom));
+					var comms = new CommsEvent(Me, CommsTypeEnum.Slept, lie, Me.Game.GetPlayer(announceWhom));
+					Me.Game.AnnounceToAIs(comms);
+					Me.Game.AddToLog(comms);
 				}
 				else
 				{
-					Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(announceWhom).Name + " went out last night");
-					Me.Game.AddToLog(Me, CommsTypeEnum.WentOut, !lie, Me.Game.GetPlayer(announceWhom));
+					var keepMouthShut = false;
+					var accuse = false;
+					if ( LastNightAnnouncedSleep.Contains(announceWhom))
+					{
+						// ok we're about to accuse someone of lying.  But careful not to rat out (or falsely accuse) an accomplice
+						if (Me.IsVampire)
+						{
+							if (Relation(announceWhom).KnownVampire || Relation(announceWhom).GussedBites > 3 * r.NextDouble())
+								keepMouthShut = true;
+						}
+						else
+						{
+							accuse = true;
+							var comms = new CommsEvent(Me, CommsTypeEnum.LiedAboutSleeping, lie, Me.Game.GetPlayer(announceWhom));
+							//Me.Game.AnnounceToAIs(comms);  redundant
+							Me.Game.AddToLog(comms);
+						}
+					}
+
+					if (! keepMouthShut)
+					{
+						if (accuse)
+						{
+							Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(announceWhom).Name + " lied! They went out last night");
+						}
+						else
+						{
+							Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(announceWhom).Name + " went out last night");
+						}
+						var comms = new CommsEvent(Me, CommsTypeEnum.WentOut, lie, Me.Game.GetPlayer(announceWhom));
+						Me.Game.AnnounceToAIs(comms);
+						Me.Game.AddToLog(comms);
+					}
+					
 				}
+			}
+		}
+
+		public void ProcessVotingEvent(EventTypeEnum type, Player subject, Player whom)
+		{
+			if (subject == Me)
+				return;
+
+			var mistrustOfSubject = .5 + Relation(subject.Id).DarkSideSuspicion;
+			if (mistrustOfSubject < 1)
+				mistrustOfSubject = 1;
+			var mistrustOfWhom = -1.0;
+			if (whom != null)
+			{
+				 mistrustOfWhom = .5 + Relation(whom.Id).DarkSideSuspicion;
+				 if (mistrustOfWhom < 1)
+					 mistrustOfWhom = 1;
+			}
+			switch (type)
+			{
+				case EventTypeEnum.VoteStake:
+					// staking *me* enmity processed elsehwere
+					// if we trust the voter, then we take their word for it
+					// (but if not, then the stake-ee is probably an be innocent victim)
+					Relation(whom.Id).DarkSideSuspicion += .5 / mistrustOfSubject -.2;
+					// if we trust the stake-ee, then the voter might be a vampire
+					
+					Relation(subject.Id).DarkSideSuspicion += .4 / mistrustOfWhom - .2;
+					break;
+				case EventTypeEnum.WasJailed:
+					Relation(subject.Id).GussedBites -= .1;
+					break;
+			}
+		}
+
+		public void HearComms(CommsTypeEnum type, Player subject, Player whom)
+		{
+			if (subject == Me)
+				return;
+			var mistrust = .5 + Relation(subject.Id).DarkSideSuspicion * .5;
+			if (mistrust < 1)
+				mistrust = 1;
+
+			switch (type)
+			{
+				case CommsTypeEnum.IWasBitten:
+					Relation(subject.Id).GussedBites += .6 / mistrust;
+					if (Me.Game.JailedPlayer != null)
+					{
+						// rather than distrust all active players, trust the jailed player?
+						Relation(Me.Game.JailedPlayer.Id).DarkSideSuspicion -= .3 / mistrust;
+					}
+					if (Me.IsInJail)
+					{
+						SuspicionAgainstMe -= .3 / mistrust;
+					}
+					break;
+				case CommsTypeEnum.Slept:
+					Relation(whom.Id).DarkSideSuspicion -= .2 / mistrust;
+					break;
+				case CommsTypeEnum.WentOut:
+					if (LastNightAnnouncedSleep.Contains(whom.Id))
+					{
+						// this is same as case CommsTypeEnum.LiedAboutSleeping:
+						Relation(whom.Id).DarkSideSuspicion += 1 / mistrust;
+					}
+					else
+					{
+						Relation(whom.Id).DarkSideSuspicion += .2 / mistrust;
+					}
+					break;
+				case CommsTypeEnum.WillSleep:
+					LastNightAnnouncedSleep.Add(subject.Id);
+					break;
 			}
 		}
 
 		public string PickEnemy(double threshHold)
 		{
 			var max = threshHold;
-			string who = RandomNotMe();
+			string who = null;
 
 			foreach (var x in Relations)
 			{
@@ -187,7 +343,7 @@ namespace WebApplication1.Models
 			{
 				if (r.NextDouble() > SuspicionAgainstMe * 4 + .9)
 				{
-					AnnounceBitten(false);
+					AnnounceMeBitten(false);
 					SuspicionAgainstMe += 1;
 				}
 			}
@@ -220,23 +376,14 @@ namespace WebApplication1.Models
 			return d;
 		}
 
+		public void OnDayEnding()
+		{
+			LastNightAnnouncedSleep = new List<string>();
+		}
 
 		public NightFormModel GetNightInstruction(List<string> ids, int turnId)
 		{
 			var otherIds = ids.Where(x => x != Me.Id).ToList();
-
-			if (!Relations.Any())
-			{
-				// must be start of game.
-				Relations.AddRange(otherIds.Select(x => new Relation() { PlayerId = x }));
-			}
-
-			SuspicionAgainstMe += .1;
-
-			if (SuspicionAgainstMe > 1)
-			{
-				SuspicionAgainstMe += .2;
-			}
 
 			var d = new NightFormModel()
 			{
@@ -249,7 +396,7 @@ namespace WebApplication1.Models
 
 				if (Me.IsVampire)
 				{
-					if (r.NextDouble() * 10 - r.NextDouble() * 5 < turnId )
+					if (r.NextDouble() * 10 - r.NextDouble() * 5 < turnId)
 					{
 						d.Action = NightActionEnum.Bite;
 					}
@@ -277,20 +424,25 @@ namespace WebApplication1.Models
 				if (d.Action == NightActionEnum.Bite)
 				{
 					var maxTastiness = 0d;
-					foreach (var re in Relations.Where(x => !x.KnownVampire))
+					foreach (var re in Relations.Where(x => otherIds.Contains(x.PlayerId)).Where(x => !x.KnownVampire))
 					{
-						var t = re.Bites + new Random().Next() * 2;
+						var t = re.GussedBites;
+						if (t > 2.5)
+							t = 2.5;
+						t = t + r.NextDouble() * 2;
 						if (t > maxTastiness)
 						{
 							maxTastiness = t;
 							d.Whom = re.PlayerId;
 						}
 					}
-					Relation(d.Whom).Bites++;
-					Relation(d.Whom).DarkSideSuspicion += .5;
-					if (Relation(d.Whom).Bites >= 3)
+					Relation(d.Whom).KnownBites++;
+					Relation(d.Whom).GussedBites++;
+					if (Relation(d.Whom).KnownBites >= 3)
 					{
 						Relation(d.Whom).KnownVampire = true;
+						Relation(d.Whom).Enmity = -1;
+						Relation(d.Whom).DarkSideSuspicion += 10;
 					}
 				}
 			}
@@ -298,7 +450,7 @@ namespace WebApplication1.Models
 			{
 				d.Action = NightActionEnum.Sleep;
 			}
-			LastNightAnnouncedSleep = false;
+			
 			if (d.Action == NightActionEnum.Sleep
 				|| (
 				d.Action == NightActionEnum.Bite
@@ -307,11 +459,21 @@ namespace WebApplication1.Models
 				)
 			{
 				var isTrue = d.Action == NightActionEnum.Sleep;
-				Me.Game.AddToLog(Me, CommsTypeEnum.WillSleep, isTrue);
+				var comms = new CommsEvent(Me, CommsTypeEnum.WillSleep, !isTrue);
+				Me.Game.AddToLog(comms);
+				Me.Game.AnnounceToAIs(comms);
 				Hub.Send(Me.Game.GameId, Me.Id, "I'm staying at home");
-				LastNightAnnouncedSleep = true;
+				LastNightAnnouncedSleep.Add(Me.Id);
 			}
 			LastNightAction = d;
+
+			if (d.Action != NightActionEnum.Sleep)
+			{
+				// assuming someone might observe
+				SuspicionAgainstMe += .2;
+			}
+
+
 			return d;
 
 		}

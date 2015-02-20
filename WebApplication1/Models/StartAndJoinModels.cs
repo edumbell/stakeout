@@ -15,8 +15,9 @@ namespace WebApplication1.Models
 		public string PlayerName { get; set; }
 
 		[DisplayName("Game Name")]
-		[Required (ErrorMessage="Please enter a name for your game")]
+		//[Required (ErrorMessage="Please enter a name for your game")]
 		public string Name { get; set; }
+		public bool DebugAllowed { get; set; }
 
 	}
 
@@ -32,6 +33,6 @@ namespace WebApplication1.Models
 	{
 		public string GameId { get; set; }
 		public string PlayerId { get; set; }
-
+		public bool DebugAllowed { get; set; }
 	}
 }

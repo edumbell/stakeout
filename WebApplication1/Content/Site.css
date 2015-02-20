@@ -4,7 +4,7 @@
     -moz-transition: background-color 1000ms linear;
     -o-transition: background-color 1000ms linear;
     -ms-transition: background-color 1000ms linear;
-    transition: background-color 1000ms linear, color 1000ms linear;
+    transition: background-color 2000ms linear, color 2000ms linear;
 }
 
 /* Set padding to keep content from hitting the edges */
@@ -17,7 +17,7 @@
 
 .msgbox {
 	height: 200px;
-	transition: background-color 1000ms linear,border-color 1000ms linear,color 1000ms linear;
+	transition: background-color 2000ms linear,border-color 2000ms linear,color 2000ms linear;
 }
 
 @media (max-width: 768px) {
@@ -168,5 +168,19 @@ li {
 }
 
 .passed span {
+	text-decoration:underline;
+}
+
+.deadplayer {
+	text-decoration:line-through;
+}
+
+.enmity {
+	color:#FF5500;
+}
+.suspicion {
+	color:#4488ff;
+}
+.debug-heading {
 	text-decoration:underline;
 }

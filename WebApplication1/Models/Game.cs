@@ -8,6 +8,7 @@ namespace WebApplication1.Models
 
 	public class Game
 	{
+		public bool DebugAllowed { get; set; }
 		public string OverMessage { get; set; }
 
 		public bool GameOver
@@ -34,19 +35,41 @@ namespace WebApplication1.Models
 			//Turns.Add(0, new Turn());
 		}
 
-
-		public void AddToLog(Player subject, CommsTypeEnum commsType, bool isTrue, Player whom = null)
+		public void LogAndAnnounceVotes(DayInstruction di)
 		{
-			AddToLog(new CommsEvent()
+			var subject = di.Actor;
+			var stakeWhom = di.StakeVote;
+			if (stakeWhom != null)
 			{
-				EventType = commsType,
-				Subject = subject,
-				Lied = !isTrue,
-				Whom = whom
-			});
+				var sv = new GameEvent()
+				{
+					EventType = EventTypeEnum.VoteStake,
+					Subject = subject,
+					Whom = stakeWhom
+				};
+				AddToLog(sv);
+				AnnounceEventToAIs(sv);
+			}
+			var jailWhom = di.JailVote;
+			if (jailWhom != null)
+			{
+				var jv = new GameEvent()
+				{
+					EventType = EventTypeEnum.VoteStake,
+					Subject = subject,
+					Whom = jailWhom
+				};
+				AddToLog(jv);
+				AnnounceEventToAIs(jv); // currently they don't care
+			}
 		}
+
+
+
 		public void AddToLog(LogItem item)
 		{
+			string turn = CurrentTurn().Id.ToString() + " "
+				+ (CurrentTurn().DayComplete ? "Night" : "Day");
 			Log.Add(item);
 		}
 
@@ -93,6 +116,14 @@ namespace WebApplication1.Models
 			}
 		}
 
+		public Player JailedPlayer
+		{
+			get
+			{
+				return Players.Where(p => p.IsInJail).FirstOrDefault();
+			}
+		}
+
 		private IOrderedEnumerable<Player> RandomPlayers()
 		{
 			var r = new Random();
@@ -124,6 +155,11 @@ namespace WebApplication1.Models
 
 		public void StartTurn()
 		{
+			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
+			foreach (var ai in ais)
+			{
+				ai.AI.OnDayEnding();
+			}
 			var i = Turns.Keys.Any() ? Turns.Keys.Max() + 1 : 1;
 			var t = new Turn()
 			{
@@ -149,6 +185,8 @@ namespace WebApplication1.Models
 		}
 		public void ProcessNightInstruction(NightInstruction i)
 		{
+			var logEvent = new GameEvent(i);
+			AddToLog(logEvent);
 			if (CurrentTurn().NightInstructions.Any())
 			{
 				var existing = CurrentTurn().NightInstructions.Where(x => x.Actor == i.Actor).FirstOrDefault();
@@ -167,6 +205,7 @@ namespace WebApplication1.Models
 
 		public void ProcessDayInstruction(DayInstruction i)
 		{
+			var logevent = new GameEvent();
 			if (CurrentTurn().DayInstructions.Any())
 			{
 				var existing = CurrentTurn().DayInstructions.Where(x => x.Actor == i.Actor).FirstOrDefault();
@@ -235,7 +274,7 @@ namespace WebApplication1.Models
 						Hub.SendPrivate(i.Whom, msg);
 						if (i.Whom.Strategy == StrategyEnum.AI)
 						{
-							i.Whom.AI.TellBitten();
+							i.Whom.AI.OnMeBitten();
 						}
 
 					}
@@ -261,7 +300,7 @@ namespace WebApplication1.Models
 
 					if (i.Actor.Strategy == StrategyEnum.AI)
 					{
-						i.Actor.AI.TellWatchResult(watcheeAction == NightActionEnum.Sleep, met.Any());
+						i.Actor.AI.ReceiveWatchResult(watcheeAction == NightActionEnum.Sleep, met.Any());
 					}
 
 					// send 'met' messages
@@ -304,6 +343,12 @@ namespace WebApplication1.Models
 
 		public void GetNightInstructionsFromAIs()
 		{
+			var anyHumansToWaitFor = MobilePlayers.Where(p => p.Strategy == StrategyEnum.Human).Any();
+			if (!anyHumansToWaitFor)
+			{
+				System.Threading.Thread.Sleep(5000);
+			}
+
 			foreach (var p in MobilePlayers.Where(p => p.Strategy == StrategyEnum.AI))
 			{
 				var inst = p.AI.GetNightInstruction(MobilePlayers.Select(m => m.Id).ToList(), CurrentTurn().Id);
@@ -377,6 +422,13 @@ namespace WebApplication1.Models
 					Announce(toJail.NameSpan + " has been put into protective custody for the night, by "
 						+ PlayerListToString(mob)
 						);
+					var jailEvent = new GameEvent()
+						{
+							EventType = EventTypeEnum.WasJailed,
+							Subject = toJail
+						};
+					AnnounceEventToAIs(jailEvent);
+					AddToLog(jailEvent);
 				}
 
 				if (stakeVotes[p.Id] >= votesNeeded)
@@ -406,6 +458,7 @@ namespace WebApplication1.Models
 			if (!GameOver)
 			{
 				StartTurn();
+
 				Hub.SendStartNight(this, CurrentTurn().Id);
 				GetNightInstructionsFromAIs();
 			}
@@ -433,6 +486,24 @@ namespace WebApplication1.Models
 				var list = PlayerListToString(hunams);
 				Announce("Well done, " + list);
 				//var vamplist = Players.Where(p => p.IsVampire && !p.IsDead);
+			}
+		}
+
+		public void AnnounceToAIs(CommsEvent comms)
+		{
+			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
+			foreach (var ai in ais)
+			{
+				ai.AI.HearComms(comms.EventType, comms.Subject, comms.Whom);
+			}
+		}
+
+		public void AnnounceEventToAIs(GameEvent ev)
+		{
+			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
+			foreach (var ai in ais)
+			{
+				ai.AI.ProcessVotingEvent(ev.EventType, ev.Subject, ev.Whom);
 			}
 		}
 
