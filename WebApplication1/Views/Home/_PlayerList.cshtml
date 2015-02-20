@@ -1,0 +1,15 @@
+﻿@using WebApplication1.Models
+@model WebApplication1.Models.Game
+
+@foreach (var p in Model.Players)
+{
+	<div>
+		<a href="javascript:void(0)" data-pid="@p.Id" class="player-debug">
+			<span class="@(p.IsDead ? "deadplayer" : "")">
+				@Html.Raw(p.NameSpan)
+			</span>
+			@(p.IsMayor ? " M" : "" )
+			@(p.IsInJail ? " J" : "" )
+		</a>
+	</div>	
+}
