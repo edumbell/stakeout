@@ -48,7 +48,7 @@ namespace WebApplication1.Models
 				{
 					Enmity = -100,
 					GussedBites = Me.Bites,
-					DarkSideSuspicion = Me.IsVampire ? 1 : -1,
+					DarkSideSuspicion = Me.IsVampire ? 10 : -10,
 					PlayerId = Me.Id
 				};
 			}
@@ -82,8 +82,8 @@ namespace WebApplication1.Models
 			{
 				x.Enmity = x.Enmity * .7 - .1;
 				x.GussedBites = x.GussedBites + .1;
-				if (x.DarkSideSuspicion < x.GussedBites - 1)
-					x.DarkSideSuspicion = x.GussedBites - 1;
+				if (x.DarkSideSuspicion < x.GussedBites*2 - 3)
+					x.DarkSideSuspicion = x.GussedBites*2- 3;
 			}
 		}
 
@@ -138,13 +138,13 @@ namespace WebApplication1.Models
 				else if (LastNightAnnouncedSleep.Contains(whomRelation.PlayerId))
 				{
 					// went out, and lied about it
-					whomRelation.DarkSideSuspicion += 1;
+					whomRelation.DarkSideSuspicion += 5;
 					Trace("Detect lie sus +1");
 				}
 				else
 				{
 					// went out, but didn't lie about it
-					whomRelation.DarkSideSuspicion += .3;
+					whomRelation.DarkSideSuspicion += .2;
 				}
 				//}
 
@@ -201,13 +201,24 @@ namespace WebApplication1.Models
 					// they went out, and lied about it - do we accuse?
 					if (LastNightAnnouncedSleep.Contains(announceWhom))
 					{
-						ProcessLie(announceWhom);
 
 						// But careful not to rat out (or falsely accuse) an accomplice
 						if (Me.IsVampire)
 						{
-							if (Relation(announceWhom).KnownVampire || Relation(announceWhom).GussedBites > 3 * r.NextDouble())
+							if (Relation(announceWhom).KnownVampire)
+							{
 								keepMouthShut = true;
+							}
+							else if (Relation(announceWhom).Enmity > 1 + 3 * r.NextDouble())
+							{
+								accuse = true;
+							}
+							else if (Relation(announceWhom).GussedBites > 1.5 + 1 * r.NextDouble())
+							{
+								keepMouthShut = true;
+							}
+							else
+								accuse = true;
 						}
 						else
 						{
@@ -251,24 +262,24 @@ namespace WebApplication1.Models
 			var relativeTrustOfWhom = -1.0;
 			if (whom != null)
 			{
-				relativeTrustOfSubject =  Relation(whom.Id).DarkSideSuspicion - Relation(subject.Id).DarkSideSuspicion;
-				relativeTrustOfWhom =  0-Relation(whom.Id).DarkSideSuspicion + Relation(subject.Id).DarkSideSuspicion;
+				relativeTrustOfSubject = Relation(whom.Id).DarkSideSuspicion - Relation(subject.Id).DarkSideSuspicion;
+				relativeTrustOfWhom = 0 - Relation(whom.Id).DarkSideSuspicion + Relation(subject.Id).DarkSideSuspicion;
 			}
 			switch (type)
 			{
 				case EventTypeEnum.VoteStake:
 					// staking *me* enmity processed elsehwere
 
-				// if we trust the voter more than the stake-ee, then we start to share their suspicion
+					// if we trust the voter more than the stake-ee, then we start to share their suspicion
 					// (but if not, then the stake-ee is *might* be innocent victim)
-					var susp1 = relativeTrustOfSubject * .2;
+					var susp1 = relativeTrustOfSubject * .3;
 					if (susp1 < 0) susp1 = susp1 * .5;
-					Relation(whom.Id).DarkSideSuspicion +=  susp1;
+					Relation(whom.Id).DarkSideSuspicion += susp1;
 					Trace("Stake-votee suspicion: " + susp1.ToString("0.00"));
-				// if we trust the stake-ee more, then the voter might be a vampire
-					var susp2 = relativeTrustOfWhom * .15;
-					if (susp2 < 0) susp2 = susp2 *.5;
-					Relation(subject.Id).DarkSideSuspicion +=  susp2;
+					// if we trust the stake-ee more, then the voter might be a vampire
+					var susp2 = relativeTrustOfWhom * .2;
+					if (susp2 < 0) susp2 = susp2 * .5;
+					Relation(subject.Id).DarkSideSuspicion += susp2;
 					Trace("Stake-voter suspicion: " + susp2.ToString("0.00"));
 					break;
 				case EventTypeEnum.WasJailed:
@@ -297,7 +308,7 @@ namespace WebApplication1.Models
 				{
 					// can be slightly negative, if we have multiple trusted reports of stay-homeness totalling > .5... that's ok:
 					totalSuspicion += (LastNightWentOutProbability[rel.PlayerId] + .5);
-					var thisSuspect = LastNightWentOutProbability[rel.PlayerId] + rel.DarkSideSuspicion*.2;
+					var thisSuspect = LastNightWentOutProbability[rel.PlayerId] + rel.DarkSideSuspicion * .2;
 					if (thisSuspect > mostSuspectSuspect)
 						mostSuspectSuspect = thisSuspect;
 				}
@@ -307,7 +318,7 @@ namespace WebApplication1.Models
 				{
 					// can be slightly negative, if we have multiple trusted reports of stay-homeness totalling > .5... that's ok:
 					var amountSuspicion = (LastNightWentOutProbability[rel.PlayerId] + .5) / totalSuspicion;
-					var addSusp = 2 * amountSuspicion * probabilityIsBite;
+					var addSusp = 4 * amountSuspicion * probabilityIsBite;
 					rel.DarkSideSuspicion += addSusp;
 					Trace("LastNightWentOut: " + LastNightWentOutProbability[rel.PlayerId] + " addSusp:" + addSusp.ToString("0.00"));
 				}
@@ -316,18 +327,24 @@ namespace WebApplication1.Models
 			else
 			{
 				// if no possible suspects, and self didn't do the biting, then we know somebody lied
-				ProcessLie(whom);
+				ProcessLie(whom, CommsTypeEnum.LiedAboutBeingBitten, "No possible suspects!");
 				return -1;
 			}
-			
+
 		}
 
-		public void ProcessLie(string lier)
+		public void ProcessLie(string lier, CommsTypeEnum topic, string msg = null)
 		{
 			Relation(lier).DarkSideSuspicion += 10;
-			var comms = new CommsEvent(Me, CommsTypeEnum.LiedAboutBeingBitten, false, Me.Game.GetPlayer(lier));
-			//Me.Game.AnnounceToAIs(comms);  redundant
+			var comms = new CommsEvent(Me, topic, false, Me.Game.GetPlayer(lier));
 			Me.Game.AddToLog(comms);
+			if (topic != CommsTypeEnum.LiedAboutSleeping)
+			{
+				// sleeping lie is processed elsewhere
+				Me.Game.AnnounceToAIs(comms);
+				if (msg != null)
+					Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(lier).Name + " lied! " + msg);
+			}
 		}
 
 		public void HearComms(CommsTypeEnum type, Player subject, Player whom)
@@ -355,9 +372,13 @@ namespace WebApplication1.Models
 						return;
 
 					var worstSuspect = ProcessBiteInfo(subject.Id, .8 / mistrust);
+					// worstsuspect = probWentOut + darkSide*.2
+					// no more cryWolf at approx worst suspect = .3
 					if (worstSuspect < -1)
 						worstSuspect = -1;
-					var cryWolfSusp = 1 / (worstSuspect  + 1.5) - .5;
+					var cryWolfSusp = 2 / (worstSuspect + 1.2) - 1.35;
+					if (cryWolfSusp < 0)
+						cryWolfSusp = 0;
 					Relation(subject.Id).DarkSideSuspicion += cryWolfSusp;
 					Trace("Cry-wolf addSusp: " + cryWolfSusp.ToString("0.00"));
 
@@ -376,9 +397,9 @@ namespace WebApplication1.Models
 						if (LastNightAnnouncedSleep.Contains(whom.Id))
 						{
 							// this is same as case CommsTypeEnum.LiedAboutSleeping:
-							var accusedAddSusp = 1 / mistrust;
+							var accusedAddSusp = 2 / mistrust;
 							Relation(whom.Id).DarkSideSuspicion += accusedAddSusp;
-							Trace("Heard accused of lying addSusp:" + accusedAddSusp.ToString("0.00"));
+							Trace("Heard accused of sleep/went-out lying addSusp:" + accusedAddSusp.ToString("0.00"));
 						}
 						else
 						{
@@ -387,9 +408,28 @@ namespace WebApplication1.Models
 							Trace("Heard went-out addSusp:" + accusedAddSusp.ToString("0.00"));
 						}
 					}
+					else
+					{
+						// claimed that I went out
+						if (LastNightAction.Action == NightActionEnum.Sleep)
+							ProcessLie(subject.Id, CommsTypeEnum.GenericLie, "I slept all night!");
+					}
 					break;
 				case CommsTypeEnum.WillSleep:
 					LastNightAnnouncedSleep.Add(subject.Id);
+					break;
+				case CommsTypeEnum.LiedAboutSleeping:
+					// processed elsewhere
+					break;
+				case CommsTypeEnum.LiedAboutBeingBitten:
+					var accusedAddSusp2 = 2 / mistrust;
+					Relation(whom.Id).DarkSideSuspicion += accusedAddSusp2;
+					Trace("Heard accused of lying about being bitten:" + accusedAddSusp2.ToString("0.00"));
+					break;
+				case CommsTypeEnum.GenericLie:
+					var accusedAddSusp3 = 2 / mistrust;
+					Relation(whom.Id).DarkSideSuspicion += accusedAddSusp3;
+					Trace("Heard accused of generic lie addSusp:" + accusedAddSusp3.ToString("0.00"));
 					break;
 			}
 		}

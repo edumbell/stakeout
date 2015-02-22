@@ -15,8 +15,9 @@ namespace WebApplication1.Models
 		IWasBitten = 2, // broadcast to AI
 		Slept = 3, // broadcast to AI
 		WentOut = 4, // broadcast to AI
-		LiedAboutSleeping = 4, // broadcast to AI
-		LiedAboutBeingBitten = 5
+		LiedAboutSleeping = 5, // broadcast to AI
+		LiedAboutBeingBitten = 6,
+		GenericLie
 	}
 
 	public enum EventTypeEnum

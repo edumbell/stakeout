@@ -310,6 +310,9 @@ namespace WebApplication1.Models
 						if (i.Actor.Strategy == StrategyEnum.AI)
 						{
 							i.Actor.AI.TellFellowVampire(i.Whom.Id);
+						}
+						if (i.Whom.Strategy == StrategyEnum.AI)
+						{
 							i.Whom.AI.TellFellowVampire(i.Actor.Id);
 						}
 					}
