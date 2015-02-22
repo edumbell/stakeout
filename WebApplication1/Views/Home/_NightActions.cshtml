@@ -7,6 +7,7 @@
 </p>
 <p class="help">
 	Regardless of your choice, you will spend some of the night sleeping soundly. You will not know who visited your house.
+	<br />
 </p>
 @using (Ajax.BeginForm("NightInstruction", null, new AjaxOptions { OnFailure="debug(xhr,status)", OnBegin = "clearForm()" }, new { @class = "form-horizontal" }))
 {
@@ -15,7 +16,7 @@
 	@Html.HiddenFor(m => m.ActorId)
 	@Html.HiddenFor(m => m.IsVampire)
 	@Html.ValidationSummary(false)
-	<br />
+
 	<div class="row">
 		<div class="col-sm-4 night-rdb-wrapper">
 			<div class="control-group">

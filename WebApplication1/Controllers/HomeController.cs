@@ -78,6 +78,7 @@ namespace WebApplication1.Controllers
 				Id = Guid.NewGuid().ToString()
 			};
 			theGame.Players.Add(player);
+			player.SetColour();
 			return View("Interface", new StartGameModel()
 			{
 				PlayerId = player.Id,
@@ -103,7 +104,7 @@ namespace WebApplication1.Controllers
 			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player)
 				.OrderBy(l => l.Turn);
 			string currentTurn = "";
-			string logResult = "<span class='debug-heading'>Debug info for " + player.NameSpan + "</span><br/>";
+			string logResult = "<h4 class='debug-heading'>Debug info for " + player.NameSpan + "</h4>";
 
 			if (player.Strategy == StrategyEnum.AI)
 			{
@@ -127,6 +128,8 @@ namespace WebApplication1.Controllers
 				}
 				logResult += log.ToString() + "<br/>";
 			}
+			if (player.AI != null)
+				logResult += player.AI.TraceLog;
 			return Content(logResult);
 		}
 
@@ -189,13 +192,13 @@ namespace WebApplication1.Controllers
 			else if (!theGame.CurrentTurn().DayComplete)
 			{
 				var model = new DayFormModel()
-	{
-		GameId = gameId,
-		ActorId = player.Id,
-		OtherPlayers = theGame.MobilePlayers.Exclude(pid).ToSelectList(),
-		AllPlayers = theGame.MobilePlayers.ToSelectList(),
-		TurnId = theGame.CurrentTurn().Id
-	};
+				{
+					GameId = gameId,
+					ActorId = player.Id,
+					OtherPlayers = theGame.MobilePlayers.Exclude(pid).ToSelectList(),
+					AllPlayers = theGame.MobilePlayers.ToSelectList(),
+					TurnId = theGame.CurrentTurn().Id
+				};
 
 				return PartialView("_DayActions", model);
 			}

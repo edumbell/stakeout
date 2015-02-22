@@ -58,6 +58,7 @@ namespace WebApplication1.Hubs
 					Hub = this,
 					Me = p
 				};
+			p.SetColour();
 			theGame.Players.Add(p);
 			Announce(theGame, p.NameSpan + " (a bot) joined");
 		}
@@ -146,11 +147,11 @@ namespace WebApplication1.Hubs
 				var all = AllClientsInGame(theGame);
 				foreach (var client in all)
 				{
-					client.gameStarted();
+					//client.gameStarted();
 				}
 
-				SendStartNight(theGame, 1);
-				theGame.GetNightInstructionsFromAIs();
+				//SendStartNight(theGame, 1);
+				//theGame.GetNightInstructionsFromAIs();
 			}
 		}
 

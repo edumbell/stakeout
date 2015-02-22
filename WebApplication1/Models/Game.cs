@@ -55,7 +55,7 @@ namespace WebApplication1.Models
 			{
 				var jv = new GameEvent()
 				{
-					EventType = EventTypeEnum.VoteStake,
+					EventType = EventTypeEnum.VoteJail,
 					Subject = subject,
 					Whom = jailWhom
 				};
@@ -68,8 +68,9 @@ namespace WebApplication1.Models
 
 		public void AddToLog(LogItem item)
 		{
-			string turn = CurrentTurn().Id.ToString() + " "
-				+ (CurrentTurn().DayComplete ? "Night" : "Day");
+			string turn = "<span class='debug-heading'>turn " + CurrentTurn().Id.ToString() + ", "
+				+ (CurrentTurn().NightComplete ? "Morning" : "Night") + "</span>";
+			item.Turn = turn;
 			Log.Add(item);
 		}
 
@@ -149,7 +150,6 @@ namespace WebApplication1.Models
 					nvampires++;
 				}
 			}
-			Turns = new Dictionary<int, Turn>();
 			StartTurn();
 		}
 
@@ -168,6 +168,9 @@ namespace WebApplication1.Models
 				DayInstructions = new List<DayInstruction>()
 			};
 			Turns.Add(i, t);
+			Hub.SendStartNight(this, CurrentTurn().Id);
+			GetNightInstructionsFromAIs();
+
 		}
 
 		public Turn CurrentTurn()
@@ -240,6 +243,11 @@ namespace WebApplication1.Models
 			return string.Join(separator, players.Select(p => p.NameSpan).ToArray());
 		}
 
+
+		public void ProcessNightInsruction(NightInstruction i)
+		{
+
+		}
 		public void FinishNight()
 		{
 
@@ -248,6 +256,49 @@ namespace WebApplication1.Models
 				var p = i.Actor;
 				if (p.IsInJail)
 					throw new Exception("Jailed actor submitted action?");
+
+
+				// NB first send results of watching/biting, so AI's know what they observed by the time they're told they were bitten
+				if (i.Action == NightActionEnum.Watch || i.Action == NightActionEnum.Bite)
+				{
+					var watcheeInsruction = CurrentTurn().NightInstructions.Where(x => x.Actor == i.Whom).SingleOrDefault();
+					if (watcheeInsruction == null)
+						throw new Exception("Missing night instruction for " + i.Whom.Name);
+					var watcheeAction = watcheeInsruction.Action;
+					if (watcheeAction == NightActionEnum.Sleep)
+					{
+						Hub.SendPrivate(p, i.Whom.NameSpan + " spent the night at home.");
+					}
+					else
+					{
+						Hub.SendPrivate(p, i.Whom.NameSpan + " snuck out of the house in the middle of the night!");
+					}
+
+					var met = CurrentTurn().NightInstructions.Where(x => x.Whom == i.Whom && x != i).Select(x => x.Actor);
+
+					if (i.Actor.Strategy == StrategyEnum.AI)
+					{
+						i.Actor.AI.ReceiveWatchResult(watcheeAction == NightActionEnum.Sleep, met.Select(x => x.Id));
+					}
+
+					// send 'met' messages
+
+					if (met.Any())
+					{
+						var metlist = PlayerListToString(met);
+						Hub.SendPrivate(p, "While lurking in " + i.Whom.NameSpan + "'s garden, you met " + metlist + "!");
+					}
+					else
+					{
+						Hub.SendPrivate(p, "Nobody else visited " + i.Whom.NameSpan + "'s house.");
+					}
+				}
+
+			}
+			foreach (var i in CurrentTurn().NightInstructions)
+			{
+				var p = i.Actor;
+
 				if (i.Action == NightActionEnum.Bite)
 				{
 					if (!p.IsVampire)
@@ -280,41 +331,6 @@ namespace WebApplication1.Models
 					}
 				}
 
-				// send results of watching/biting
-				if (i.Action == NightActionEnum.Watch || i.Action == NightActionEnum.Bite)
-				{
-					var watcheeInsruction = CurrentTurn().NightInstructions.Where(x => x.Actor == i.Whom).SingleOrDefault();
-					if (watcheeInsruction == null)
-						throw new Exception("Missing night instruction for " + i.Whom.Name);
-					var watcheeAction = watcheeInsruction.Action;
-					if (watcheeAction == NightActionEnum.Sleep)
-					{
-						Hub.SendPrivate(p, i.Whom.NameSpan + " spent the night at home.");
-					}
-					else
-					{
-						Hub.SendPrivate(p, i.Whom.NameSpan + " snuck out of the house in the middle of the night!");
-					}
-
-					var met = CurrentTurn().NightInstructions.Where(x => x.Whom == i.Whom && x != i).Select(x => x.Actor);
-
-					if (i.Actor.Strategy == StrategyEnum.AI)
-					{
-						i.Actor.AI.ReceiveWatchResult(watcheeAction == NightActionEnum.Sleep, met.Any());
-					}
-
-					// send 'met' messages
-
-					if (met.Any())
-					{
-						var metlist = PlayerListToString(met);
-						Hub.SendPrivate(p, "While lurking in " + i.Whom.NameSpan + "'s garden, you met " + metlist + "!");
-					}
-					else
-					{
-						Hub.SendPrivate(p, "Nobody else visited " + i.Whom.NameSpan + "'s house.");
-					}
-				}
 			}
 			if (Players.Where(p => p.IsInJail).Any())
 			{
@@ -387,6 +403,10 @@ namespace WebApplication1.Models
 
 		public void FinishDay()
 		{
+			foreach (var di in CurrentTurn().DayInstructions)
+			{
+				LogAndAnnounceVotes(di);
+			}
 			Dictionary<string, double> stakeVotes = new Dictionary<string, double>();
 			Dictionary<string, double> jailVotes = new Dictionary<string, double>();
 			foreach (var p in MobilePlayers)
@@ -450,17 +470,12 @@ namespace WebApplication1.Models
 						}
 					}
 				}
-
 			}
-
-
 			EndOfGameCheck();
+			CurrentTurn().DayComplete = true;
 			if (!GameOver)
 			{
 				StartTurn();
-
-				Hub.SendStartNight(this, CurrentTurn().Id);
-				GetNightInstructionsFromAIs();
 			}
 		}
 
@@ -521,6 +536,7 @@ namespace WebApplication1.Models
 
 	public class Player
 	{
+		public string Colour { get; set; }
 		public Game Game { get; set; }
 		public bool IsMayor { get; set; }
 		public bool IsVampire { get; set; }
@@ -537,14 +553,21 @@ namespace WebApplication1.Models
 				return "<strong style='color:" + Colour + "'>" + Name + "</strong>";
 			}
 		}
-		public string Colour
+		public void SetColour()
 		{
-			get
+			string[] cols = { "#0099ff", "#aa00ff", "#ff00cc", "#ff9900", "#90c900", "#00c990", "#00d000", "#aaaaaa" };
+			var cid = Name.ToCharArray().Sum(x => (int)x) % cols.Count();
+			Colour = cols[cid];
+			if (Game.Players.Select(p => p.Colour).Contains(Colour))
 			{
-				string[] cols = { "#0099ff", "#aa00ff", "#ff00cc", "#ff9900", "#77c900", "#00c977", "#00d000", "#aaaaaa" };
-				var cid = Name.ToCharArray().Sum(x => (int)x) % cols.Count();
-				return cols[cid];
+				var remainingCols = cols.Except(Game.Players.Select(p => p.Colour)).ToArray();
+				if (remainingCols.Any())
+				{
+					var cidAlt = Name.ToCharArray().Sum(x => (int)x) % remainingCols.Count();
+					Colour = remainingCols[cidAlt];
+				}
 			}
+			// availCols.Except(Game.Players.Select(Colour));
 		}
 		public string ConnectionId { get; set; }
 		public StrategyEnum Strategy { get; set; }
