@@ -104,8 +104,20 @@ namespace WebApplication1.Controllers
 			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player)
 				.OrderBy(l => l.Turn);
 			string currentTurn = "";
-			string logResult = "<h4 class='debug-heading'>Debug info for " + player.NameSpan + "</h4>";
+			string logResult = "<h4 class='debug-heading'>Debug info for " + player.NameSpan
+				+ (player.IsVampire ? " V" : "");
 
+			logResult += "<span class='bites'>";
+			for (var x = 0; x < player.Bites; x++)
+			{
+				logResult += "x";
+			}
+			logResult += "</span>";
+			logResult += "</h4>";
+			if (player.AI != null)
+			{
+				logResult += "Estiamted suspicion against self: " + player.AI.SuspicionAgainstMe + "</br>";
+			}
 			if (player.Strategy == StrategyEnum.AI)
 			{
 				foreach (var r in player.AI.Relations)

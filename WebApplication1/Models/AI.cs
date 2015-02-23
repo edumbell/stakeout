@@ -82,8 +82,8 @@ namespace WebApplication1.Models
 			{
 				x.Enmity = x.Enmity * .7 - .1;
 				x.GussedBites = x.GussedBites + .1;
-				if (x.DarkSideSuspicion < x.GussedBites*2 - 3)
-					x.DarkSideSuspicion = x.GussedBites*2- 3;
+				if (x.DarkSideSuspicion < x.GussedBites * 2 - 3)
+					x.DarkSideSuspicion = x.GussedBites * 2 - 3;
 			}
 		}
 
@@ -134,17 +134,22 @@ namespace WebApplication1.Models
 				{
 					whomRelation.DarkSideSuspicion -= .3;
 					LastNightKnownSlept.Add(LastNightAction.Whom);
-				}
-				else if (LastNightAnnouncedSleep.Contains(whomRelation.PlayerId))
-				{
-					// went out, and lied about it
-					whomRelation.DarkSideSuspicion += 5;
-					Trace("Detect lie sus +1");
+					LastNightWentOutProbability[whomRelation.PlayerId] = -10;
 				}
 				else
 				{
-					// went out, but didn't lie about it
-					whomRelation.DarkSideSuspicion += .2;
+					LastNightWentOutProbability[whomRelation.PlayerId] = 10;
+					if (LastNightAnnouncedSleep.Contains(whomRelation.PlayerId))
+					{
+						// went out, and lied about it
+						whomRelation.DarkSideSuspicion += 5;
+						Trace("Detect lie sus +1");
+					}
+					else
+					{
+						// went out, but didn't lie about it
+						whomRelation.DarkSideSuspicion += .2;
+					}
 				}
 				//}
 
@@ -242,6 +247,7 @@ namespace WebApplication1.Models
 							Hub.Send(Me.Game.GameId, Me.Id, Me.Game.GetPlayer(announceWhom).Name + " went out last night");
 						}
 						var comms = new CommsEvent(Me, CommsTypeEnum.WentOut, lie, Me.Game.GetPlayer(announceWhom));
+
 						Me.Game.AnnounceToAIs(comms);
 						Me.Game.AddToLog(comms);
 					}
@@ -250,35 +256,64 @@ namespace WebApplication1.Models
 			}
 		}
 
+		// similar logic to vote-to-stake, but in this case we know one or other is a vampire (or very silly lying human)
+		// slept/went-out  processed where, making use of extra information
+		public void ProcessAccusation(string accuser, string accused)
+		{
+			// difference of 1,  66% 33%
+			// difference of 4, 89% 11%
+			var relativeTrustOfAccuser = Relation(accused).DarkSideSuspicion - Relation(accuser).DarkSideSuspicion;
+			var newAccuserSusp = 0 - relativeTrustOfAccuser * .2;
+			var newAccusedSusp = relativeTrustOfAccuser * .2;
+			if (newAccusedSusp < .1)
+			{
+				newAccusedSusp = .1;
+			}
+			if (newAccuserSusp < .1)
+			{
+				newAccuserSusp = .1;
+			}
+			var total = newAccuserSusp + newAccuserSusp;
+			newAccusedSusp = newAccusedSusp / total;
+			newAccuserSusp = newAccuserSusp / total;
+			Relation(accused).DarkSideSuspicion += newAccusedSusp;
+			Trace("Accused suspicion: " + newAccusedSusp.ToString("0.00"));
+			Relation(accuser).DarkSideSuspicion += newAccuserSusp;
+			Trace("Accuser suspicion: " + newAccuserSusp.ToString("0.00"));
+
+		}
+
 		public void ProcessVotingEvent(EventTypeEnum type, Player subject, Player whom)
 		{
 			if (subject == Me)
 				return;
 
-			var mistrustOfSubject = .5 + Relation(subject.Id).DarkSideSuspicion;
-			if (mistrustOfSubject < 1)
-				mistrustOfSubject = 1;
-			var relativeTrustOfSubject = -1.0;
-			var relativeTrustOfWhom = -1.0;
+			//var mistrustOfSubject = .5 + Relation(subject.Id).DarkSideSuspicion;
+			//if (mistrustOfSubject < 1)
+			//	mistrustOfSubject = 1;
+			var relativeMisTrustOfSubject = -1.0;
+			var relativeMisTrustOfWhom = -1.0;
 			if (whom != null)
 			{
-				relativeTrustOfSubject = Relation(whom.Id).DarkSideSuspicion - Relation(subject.Id).DarkSideSuspicion;
-				relativeTrustOfWhom = 0 - Relation(whom.Id).DarkSideSuspicion + Relation(subject.Id).DarkSideSuspicion;
+				relativeMisTrustOfWhom = Relation(whom.Id).DarkSideSuspicion  - Relation(subject.Id).DarkSideSuspicion/2;
+				relativeMisTrustOfSubject = 0 - Relation(whom.Id).DarkSideSuspicion /2+ Relation(subject.Id).DarkSideSuspicion ;
+
 			}
 			switch (type)
 			{
 				case EventTypeEnum.VoteStake:
 					// staking *me* enmity processed elsehwere
-
+					if (relativeMisTrustOfSubject < -2)
+						relativeMisTrustOfSubject = -2;
+					if (relativeMisTrustOfWhom < -2)
+						relativeMisTrustOfWhom= -2;
 					// if we trust the voter more than the stake-ee, then we start to share their suspicion
-					// (but if not, then the stake-ee is *might* be innocent victim)
-					var susp1 = relativeTrustOfSubject * .3;
-					if (susp1 < 0) susp1 = susp1 * .5;
+					// (but if not, then the stake-ee  *might* be innocent victim)
+					var susp1 = 1 / (1 +  relativeMisTrustOfSubject * .4) - .2;
 					Relation(whom.Id).DarkSideSuspicion += susp1;
 					Trace("Stake-votee suspicion: " + susp1.ToString("0.00"));
 					// if we trust the stake-ee more, then the voter might be a vampire
-					var susp2 = relativeTrustOfWhom * .2;
-					if (susp2 < 0) susp2 = susp2 * .5;
+					var susp2 = 1 / ( relativeMisTrustOfWhom * .4) - .2;
 					Relation(subject.Id).DarkSideSuspicion += susp2;
 					Trace("Stake-voter suspicion: " + susp2.ToString("0.00"));
 					break;
@@ -422,14 +457,10 @@ namespace WebApplication1.Models
 					// processed elsewhere
 					break;
 				case CommsTypeEnum.LiedAboutBeingBitten:
-					var accusedAddSusp2 = 2 / mistrust;
-					Relation(whom.Id).DarkSideSuspicion += accusedAddSusp2;
-					Trace("Heard accused of lying about being bitten:" + accusedAddSusp2.ToString("0.00"));
+					ProcessAccusation(subject.Id, whom.Id);
 					break;
 				case CommsTypeEnum.GenericLie:
-					var accusedAddSusp3 = 2 / mistrust;
-					Relation(whom.Id).DarkSideSuspicion += accusedAddSusp3;
-					Trace("Heard accused of generic lie addSusp:" + accusedAddSusp3.ToString("0.00"));
+					ProcessAccusation(subject.Id, whom.Id);
 					break;
 			}
 		}
@@ -442,12 +473,10 @@ namespace WebApplication1.Models
 			foreach (var x in Relations)
 			{
 				double t = r.NextDouble() * .5;
-				t += x.Enmity;
+				if (Me.Game.GetPlayer(x.PlayerId).IsMayor)
+					t += .5;
 
-				if (Me.IsVampire && x.KnownVampire)
-				{
-					t -= 3;
-				}
+				t += x.Enmity;
 
 				if (Me.IsVampire)
 				{

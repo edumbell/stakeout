@@ -144,7 +144,7 @@ namespace WebApplication1.Models
 			{
 				if ((nvampires + 1) >= n / 2.0)
 					break;
-				if (r.NextDouble() > (n - 2) * 0.1)
+				if (r.NextDouble()*100 <  n*1.5 )
 				{
 					p.IsVampire = true;
 					nvampires++;
@@ -558,7 +558,7 @@ namespace WebApplication1.Models
 		}
 		public void SetColour()
 		{
-			string[] cols = { "#0099ff", "#aa00ff", "#ff00cc", "#ff9900", "#90c900", "#00c990", "#00d000", "#aaaaaa" };
+			string[] cols = { "#7766ff","#0099ff", "#bb00ff", "#f000aa", "#ff4444", "#ff9900", "#99c000", "#00c0a4", "#00c600", "#aaaaaa" };
 			var cid = Name.ToCharArray().Sum(x => (int)x) % cols.Count();
 			Colour = cols[cid];
 			if (Game.Players.Select(p => p.Colour).Contains(Colour))
