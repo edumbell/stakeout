@@ -1,0 +1,31 @@
+﻿@using WebApplication1.Models
+@model WebApplication1.Models.CommsFormModel
+
+<div class="help">
+	<h4>Make an announcement</h4>
+</div>
+@using (Ajax.BeginForm("SubmitComms", null, new AjaxOptions { OnFailure = "debug(xhr,status)", OnBegin = "hideComms()", OnSuccess="showComms()" }, new { @class = "form-horizontal" }))
+{
+	@Html.HiddenFor(m => m.GameId)
+	@Html.HiddenFor(m => m.ActorId)
+
+	@Html.ValidationSummary(false)
+
+	<div class="row">
+		<div class="col-sm-5 comms-whom-wrapper">
+			@Html.DropDownListFor(m => m.WhomId, Model.OtherPlayers, null, new { @class = "select form-control " })
+			<div class="clearfix"></div>
+		</div>
+		<div class="col-sm-5 comms-type-wrapper">
+			@Html.DropDownListFor(m => m.CommsType, Model.Options(),null, new { @class = "select form-control" })
+			<div class="clearfix"></div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div style="margin-top:-25px">
+				<button type="submit" class="btn btn-info pull-right">Announce</button>
+			</div>
+		</div>
+	</div>
+}
