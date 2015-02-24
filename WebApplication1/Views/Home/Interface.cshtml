@@ -70,6 +70,13 @@
 			$(".actions").html('');
 		}
 
+		function hideComms() {
+			$(".comms-form").attr("style","visibility:hidden");
+		}
+		function showComms() {
+			$(".comms-form").attr("style", "visibility:visible");
+		}
+
 		function setStatus(msg) {
 			$("#status").html(msg);
 		}
@@ -78,6 +85,7 @@
 			el.stop();
 			el.animate({ scrollTop: el.prop("scrollHeight") - el.height() }, 1000);
 		}
+
 
 		$(function () {
 
@@ -212,6 +220,19 @@
 					console.log('enable');
 					$(".night-whom-wrapper select").removeAttr("disabled");
 					$(".night-whom-wrapper select").show(100);
+				}
+			});
+
+
+			$("body").on("change", ".comms-type-wrapper select", null, function () {
+
+				if ($(".comms-type-wrapper select").val() == '2') {
+					$(".comms-whom-wrapper select").attr("disabled", "disabled");
+					$(".comms-whom-wrapper select").hide(100);
+				}
+				else {
+					$(".comms-whom-wrapper select").removeAttr("disabled");
+					$(".comms-whom-wrapper select").show(100);
 				}
 			});
 

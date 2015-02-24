@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using System.ComponentModel;
 
 namespace WebApplication1.Models
 {
@@ -12,12 +13,16 @@ namespace WebApplication1.Models
 	public enum CommsTypeEnum
 	{
 		WillSleep = 1, // broadcast to AI
+		[Description("I've been bitten")]
 		IWasBitten = 2, // broadcast to AI
+		[Description("Slept")]
 		Slept = 3, // broadcast to AI
+		[Description("Went out")]
 		WentOut = 4, // broadcast to AI
 		LiedAboutSleeping = 5, // broadcast to AI
 		LiedAboutBeingBitten = 6,
-		GenericLie
+		[Description("Is a liar")]
+		GenericLie = 7
 	}
 
 	public enum EventTypeEnum

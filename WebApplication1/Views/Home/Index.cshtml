@@ -39,24 +39,24 @@
 	<hr />
 	<div class="well">
 		<h2>Create a new game</h2>
-		<br/>
+		<br />
 		<div class="form-group">
 			<label class="control-label">
 				@Html.CheckBoxFor(m => m.DebugAllowed, new { @class = "checkbox pull-left" })
 				&nbsp;
 				Debug mode? (Can view bot reasoning, etc.)
 			</label>
-			</div>
-
-			<div class="form-group">
-				
-				@Html.LabelFor(m => m.Name, new { @class = "form-label" })
-				@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
-				@Html.ValidationMessageFor(m => m.Name)
-				
-			</div>
-		<button type="submit" class="btn btn-primary">Create</button>
 		</div>
+
+		<div class="form-group">
+
+			@Html.LabelFor(m => m.Name, new { @class = "form-label" })
+			@Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+			@Html.ValidationMessageFor(m => m.Name)
+
+		</div>
+		<button type="submit" class="btn btn-primary">Create</button>
+	</div>
 
 }
 
@@ -69,43 +69,44 @@
 		</text>
 
 	}
-	else
+	
+	@if (WebApplication1.Models.Game.GameList.Any())
 	{
-		<div class="container">
-			<div class="row">
+
+		<div class="row">
+			<div class="col-xs-8 col-sm-4">
+				<strong>
+					Game (humans / bots)
+				</strong>
+			</div>
+			<div class="col-xs-4">
+
+			</div>
+		</div>
+		foreach (var g in WebApplication1.Models.Game.GameList)
+		{
+
+			<div class="row" style="margin-bottom:5px">
 				<div class="col-xs-8 col-sm-4">
-					<strong>
-						Game (humans / bots)
-					</strong>
+					@g.Name
+					(@(g.GetNumHumans())/@(g.GetNumBots()))
 				</div>
 				<div class="col-xs-4">
-
+					@if (!g.HasStarted)
+					{
+						<button class="btn btn-primary join-game" data-game-id="@g.GameId"> Join</button>
+					}
+					else
+					{
+						<text>
+							@(g.GameOver ? g.OverMessage + " x " : "(in progress)")
+						</text>
+					}
 				</div>
 			</div>
-			@foreach (var g in WebApplication1.Models.Game.GameList)
-			{
+		}
 
-				<div class="row" style="margin-bottom:5px">
-					<div class="col-xs-8 col-sm-4">
-						@g.Name
-						(@(g.GetNumHumans())/@(g.GetNumBots()))
-					</div>
-					<div class="col-xs-4">
-						@if (!g.HasStarted)
-						{
-							<button class="btn btn-primary join-game" data-game-id="@g.GameId"> Join</button>
-						}
-						else
-						{
-							<text>
-								@(g.GameOver ? g.OverMessage + " x " : "(in progress)")
-							</text>
-						}
-					</div>
-				</div>
-			}
 
-		</div>
 	}
 </div>
 <hr />

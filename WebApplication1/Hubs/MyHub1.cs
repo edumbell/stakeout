@@ -63,13 +63,45 @@ namespace WebApplication1.Hubs
 			Announce(theGame, p.NameSpan + " (a bot) joined");
 		}
 
+		public void AnnounceComms(Game game, CommsEvent comms, string customMessage = null)
+		{
+			game.AddToLog(comms);
+			game.AnnounceToAIs(comms);
+			string msg = ":: " + comms.Subject.NameSpan + ": ";
+			if (customMessage != null)
+			{
+				Announce(game, msg  + customMessage);
+			}
+			else
+			{
+				switch (comms.EventType)
+				{
+					case CommsTypeEnum.IWasBitten:
+						msg += "I've been bitten!";
+						break;
+					case CommsTypeEnum.WillSleep:
+						msg += "I'm staying at home";
+						break;
+					case CommsTypeEnum.Slept:
+						msg += comms.Whom.NameSpan + " stayed at home";
+						break;
+					case CommsTypeEnum.GenericLie:
+						msg += comms.Whom.NameSpan + " is a liar!";
+						break;
+					case CommsTypeEnum.WentOut:
+						msg += comms.Whom.NameSpan + " went out";
+						break;
+				}
+				Announce(game, msg);
+			}
+		}
 
 		public void LinkConnectionToPlayer(string gameId, string pid)
 		{
 			var theGame = Game.GetGame(gameId);
 			var p = theGame.GetPlayer(pid);
 			if (p != null)
-		{	
+			{
 				p.ConnectionId = this.Context.ConnectionId;
 
 				var all = AllClientsInGame(theGame);

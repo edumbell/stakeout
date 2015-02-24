@@ -12,6 +12,7 @@ namespace WebApplication1.Controllers
 
 		public ActionResult Index()
 		{
+			WebApplication1.Utilities.Keepalive.EnsureStarted(System.Web.HttpContext.Current);
 			return View();
 		}
 
@@ -150,7 +151,13 @@ namespace WebApplication1.Controllers
 			var theGame = Game.GetGame(model.GameId);
 			if (theGame.CurrentTurn().DayComplete
 	|| theGame.CurrentTurn().Id != model.TurnId)
+			{
+				theGame.Error += "Turn already complete! theGame.CurrentTur().Id = " + theGame.CurrentTurn().Id
+					+ ".  theGame.CurrentTurn().DayComplete = " + theGame.CurrentTurn().DayComplete
+				 + ".  model.TurnId = " + model.TurnId
+						;
 				return Content("Turn already complete! Did you use the back button in your browser??");
+			}
 			else
 			{
 				var instruction = new DayInstruction(theGame, model);
@@ -171,6 +178,33 @@ namespace WebApplication1.Controllers
 				theGame.ProcessNightInstruction(instruction);
 				return Content(null);
 			}
+		}
+
+		public ActionResult CommsForm(string gameId, string pid)
+		{
+			var theGame = Game.GetGame(gameId);
+			var player = theGame.GetPlayer(pid);
+			if (player.IsDead)
+			{
+				return Content("");
+			}
+			var model = new CommsFormModel()
+			{
+				GameId = gameId,
+				ActorId = player.Id,
+				OtherPlayers = theGame.MobilePlayers.Exclude(pid).ToSelectList(),
+			};
+
+			return PartialView("_CommsActions", model);
+		}
+
+		public ActionResult SubmitComms(CommsFormModel model)
+		{
+			var theGame = Game.GetGame(model.GameId);
+			var player = theGame.GetPlayer(model.ActorId);
+			var comms = new CommsEvent(player, model.CommsType, false, theGame.GetPlayer(model.WhomId));
+			theGame.Hub.AnnounceComms(theGame, comms);
+			return Content(null);
 		}
 
 		public ActionResult GetActions(string gameId, string pid)

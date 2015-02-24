@@ -4,6 +4,7 @@ using System.Linq;
 using System.Web;
 using System.Collections;
 
+
 namespace WebApplication1.Models
 {
 	public class NightFormModel
@@ -29,5 +30,23 @@ namespace WebApplication1.Models
 		public string KillWhom { get; set; }
 		public string JailWhom { get; set; }
 
+	}
+
+	public class CommsFormModel
+	{
+		public string GameId { get; set; }
+		public string ActorId { get; set; }
+		public string WhomId { get; set; }
+		public IEnumerable<System.Web.Mvc.SelectListItem> OtherPlayers { get; set; }
+		public IEnumerable<System.Web.Mvc.SelectListItem> Options()
+		{
+			var opts = new List<CommsTypeEnum>();
+			opts.Add(CommsTypeEnum.IWasBitten);
+			opts.Add(CommsTypeEnum.Slept);
+			opts.Add(CommsTypeEnum.WentOut);
+			opts.Add(CommsTypeEnum.GenericLie);
+			return opts.ToSelectList();
+		}
+		public CommsTypeEnum CommsType { get; set; }
 	}
 }

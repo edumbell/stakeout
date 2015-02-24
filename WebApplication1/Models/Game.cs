@@ -8,6 +8,7 @@ namespace WebApplication1.Models
 
 	public class Game
 	{
+		public string Error { get; set; }
 		public bool DebugAllowed { get; set; }
 		public string OverMessage { get; set; }
 

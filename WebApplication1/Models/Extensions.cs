@@ -17,6 +17,12 @@ namespace WebApplication1.Models
 			return players.Select(p => new SelectListItem() { Text = p.Name, Value = p.Id });
 		}
 
+
+		public static IEnumerable<SelectListItem> ToSelectList(this IEnumerable<CommsTypeEnum> opts)
+		{
+			return opts.Select(p => new SelectListItem() { Text = p.GetDescription(), Value = ((int)p).ToString() });
+		}
+
 		public static IEnumerable<Player> Exclude(this IEnumerable<Player> players, string pid)
 		{
 			return players.Where(p => p.Id != pid).ToList();
