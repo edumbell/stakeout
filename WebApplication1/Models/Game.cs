@@ -8,6 +8,7 @@ namespace WebApplication1.Models
 
 	public class Game
 	{
+		Random r = new Random();
 		public string Error { get; set; }
 		public bool DebugAllowed { get; set; }
 		public string OverMessage { get; set; }
@@ -128,7 +129,6 @@ namespace WebApplication1.Models
 
 		private IOrderedEnumerable<Player> RandomPlayers()
 		{
-			var r = new Random();
 			return Players.OrderBy(x => r.NextDouble());
 		}
 
