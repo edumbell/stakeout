@@ -1,4 +1,4 @@
-﻿@model WebApplication1.Models.CreateGameModel
+﻿var susp2 = relativeTrustOfWhom;@model WebApplication1.Models.CreateGameModel
 @{
 	ViewBag.Title = "Home Page";
 }
@@ -20,7 +20,7 @@
 	</script>
 }
 <strong class="pull-right">
-	Last updated 16 Feb
+	Last updated 26 Feb
 </strong>
 <h2>Welcome to Stake-Out</h2>
 <h3 style="color:#dd0033">&lsquo;It takes a village&rsquo;</h3>
@@ -112,10 +112,10 @@
 <hr />
 <h3>Notes</h3>
 <ul>
-	<li>
-		If the server is left idle for 20 minutes, it will forget all games and players
-	</li>
 	<li>You can join the same game as 2 humans by opening this page in a new browser tab.  (This is of course totally cheating, but useful for playtesting)</li>
+	<li>
+		If you 'debug mode' when creadting a game, humans can click on the name of a bot to see under the hood 1) the bot's attitude to all players, 2) a log of actions, lies, lie-detection, 3) some obscure trust calculations.  Cheating, of course =)
+	</li>
 </ul>
 <hr />
 @Html.Partial("ChangeLog")
