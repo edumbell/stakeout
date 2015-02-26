@@ -287,7 +287,7 @@ namespace WebApplication1.Models
 		{
 			// difference of 1,  66% 33%
 			// difference of 4, 89% 11%
-			var newAccusedSusp = MIstrustToMult(Relation(accused).DarkSideSuspicion - Relation(accuser).DarkSideSuspicion);
+			var newAccusedSusp = MIstrustToMult(Relation(accuser).DarkSideSuspicion - Relation(accused).DarkSideSuspicion);
 			var newAccuserSusp = 1 - newAccusedSusp;
 			newAccuserSusp -= .15;
 			newAccusedSusp -= .15;
