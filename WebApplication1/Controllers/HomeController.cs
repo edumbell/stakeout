@@ -9,9 +9,19 @@ namespace WebApplication1.Controllers
 	public class HomeController : Controller
 	{
 
+		public ActionResult Warn()
+		{
+			Game.UpdateInProgress = true;
+			foreach (var g in Game.GameList)
+			{
+				g.Announce("WARNING, UPDATE IN PROGRESS, YOUR GAME MAY BE INTERRUPTED IN A FEW MINUTES.  SORRY!");
+			}
+			return Content(DateTime.Now.ToShortTimeString());
+		}
 
 		public ActionResult Index()
 		{
+
 			WebApplication1.Utilities.Keepalive.EnsureStarted(System.Web.HttpContext.Current);
 			return View();
 		}

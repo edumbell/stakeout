@@ -65,7 +65,7 @@ namespace WebApplication1.Models
 				{
 					Enmity = -100,
 					GussedBites = Me.Bites,
-					DarkSideSuspicion = Me.IsVampire ? 10 : -10,
+					DarkSideSuspicion = Me.IsVampire ? 100 : -100,
 					PublicSuspicion = SuspicionAgainstMe,
 					PlayerId = Me.Id
 				};
@@ -336,15 +336,21 @@ namespace WebApplication1.Models
 
 					// if we trust the voter more than the stake-ee, then we start to share their suspicion
 					// (but if not, then the stake-ee  *might* be innocent victim)
-					var susp1 = relativeTrustOfSubject*.5;
-					var susp2 = relativeTrustOfWhom*.5;
+					var susp1 = relativeTrustOfSubject*.8-.3; // being staked by shady character can make you look good
+					var susp2 = relativeTrustOfWhom*.6-.1;
 					Relation(whom.Id).DarkSideSuspicion += susp1;
-					Relation(whom.Id).Enmity += susp1 * 2;
+					if (!Me.IsVampire)
+					{
+						Relation(whom.Id).Enmity += susp1 * 2;
+					}
 					Trace("Stake-votee suspicion: " + susp1.ToString("0.00"));
 					// if we trust the stake-ee more, then the voter might be a vampire
 					
 					Relation(subject.Id).DarkSideSuspicion += susp2;
-					Relation(subject.Id).Enmity += susp2 * 2;
+					if (!Me.IsVampire)
+					{
+						Relation(subject.Id).Enmity += susp2 * 2;
+					}
 					Trace("Stake-voter suspicion: " + (susp2).ToString("0.00"));
 					break;
 				case EventTypeEnum.WasJailed:

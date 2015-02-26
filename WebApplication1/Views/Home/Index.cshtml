@@ -1,4 +1,4 @@
-﻿var susp2 = relativeTrustOfWhom;@model WebApplication1.Models.CreateGameModel
+﻿@model WebApplication1.Models.CreateGameModel
 @{
 	ViewBag.Title = "Home Page";
 }
@@ -22,6 +22,20 @@
 <strong class="pull-right">
 	Last updated 26 Feb
 </strong>
+
+@if(WebApplication1.Models.Game.UpdateInProgress)
+{
+	<div class="well warning">
+		<h1>
+			Update in progress
+		</h1>
+		<h3>
+			To avoid disappointment due to Stake-Outus interruptus, please wait a minute or two before creating or joining a game. 
+		</h3>
+		(if you refresh the page and this message is gone, you can proceed with confidence)
+	</div>
+}
+
 <h2>Welcome to Stake-Out</h2>
 <h3 style="color:#dd0033">&lsquo;It takes a village&rsquo;</h3>
 
@@ -114,7 +128,7 @@
 <ul>
 	<li>You can join the same game as 2 humans by opening this page in a new browser tab.  (This is of course totally cheating, but useful for playtesting)</li>
 	<li>
-		If you 'debug mode' when creadting a game, humans can click on the name of a bot to see under the hood 1) the bot's attitude to all players, 2) a log of actions, lies, lie-detection, 3) some obscure trust calculations.  Cheating, of course =)
+		If that isn't cheating enough, tick 'debug mode' when creating a game: You'll be able to click on the name of a bot (in 'player statuses') to peek under the hood at: 0) Vampire status &amp; number of bites 1) the bot's attitude to all players, 2) a log of actions, lies, lie-detection, 3) some obscure trust calculations.
 	</li>
 </ul>
 <hr />

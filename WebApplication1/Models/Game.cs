@@ -8,6 +8,8 @@ namespace WebApplication1.Models
 
 	public class Game
 	{
+		public static bool UpdateInProgress { get; set; }
+
 		Random r = new Random();
 		public string Error { get; set; }
 		public bool DebugAllowed { get; set; }
