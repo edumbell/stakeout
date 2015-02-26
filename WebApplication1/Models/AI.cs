@@ -336,8 +336,8 @@ namespace WebApplication1.Models
 
 					// if we trust the voter more than the stake-ee, then we start to share their suspicion
 					// (but if not, then the stake-ee  *might* be innocent victim)
-					var susp1 = relativeTrustOfSubject*.8-.3; // being staked by shady character can make you look good
-					var susp2 = relativeTrustOfWhom*.6-.1;
+					var susp1 = relativeTrustOfSubject * .8 - .3; // being staked by shady character can make you look good
+					var susp2 = relativeTrustOfWhom * .6 - .1;
 					Relation(whom.Id).DarkSideSuspicion += susp1;
 					if (!Me.IsVampire)
 					{
@@ -345,7 +345,7 @@ namespace WebApplication1.Models
 					}
 					Trace("Stake-votee suspicion: " + susp1.ToString("0.00"));
 					// if we trust the stake-ee more, then the voter might be a vampire
-					
+
 					Relation(subject.Id).DarkSideSuspicion += susp2;
 					if (!Me.IsVampire)
 					{
@@ -396,7 +396,7 @@ namespace WebApplication1.Models
 				foreach (var rel in suspects)
 				{
 					// can be slightly negative, if we have multiple trusted reports of stay-homeness totalling > .5... that's ok:
-					totalNewSuspicion += MIstrustToMult(0-LastNightWentOutProbability[rel.PlayerId] * 3);
+					totalNewSuspicion += MIstrustToMult(0 - LastNightWentOutProbability[rel.PlayerId] * 3);
 					var thisSuspect = 1 - MIstrustToMult(LastNightWentOutProbability[rel.PlayerId] * 3) - MIstrustToMult(rel.DarkSideSuspicion);
 					if (thisSuspect > mostSuspectSuspect)
 						mostSuspectSuspect = thisSuspect;
@@ -404,7 +404,7 @@ namespace WebApplication1.Models
 
 				foreach (var rel in suspects)
 				{
-					var amountSuspicion = MIstrustToMult(0-LastNightWentOutProbability[rel.PlayerId] * 3) / totalNewSuspicion;
+					var amountSuspicion = MIstrustToMult(0 - LastNightWentOutProbability[rel.PlayerId] * 3) / totalNewSuspicion;
 					var addSusp = 4 * amountSuspicion * probabilityIsBite;
 					rel.DarkSideSuspicion += addSusp;
 					Trace("LastNightWentOut: " + LastNightWentOutProbability[rel.PlayerId] + " addSusp:" + addSusp.ToString("0.00"));
@@ -494,10 +494,10 @@ namespace WebApplication1.Models
 					{
 						// if contrary evidence, don't trust the report
 
-						var trustThisReport = trust - MIstrustToMult(0- LastNightWentOutProbability[whom.Id]) + .5;
+						var trustThisReport = trust - MIstrustToMult(0 - LastNightWentOutProbability[whom.Id]) + .5;
 						if (LastNightKnownSlept.Contains(whom.Id))
 						{
-							ProcessLie(subject.Id, CommsTypeEnum.GenericLie, whom + " slept all night!");
+							ProcessLie(subject.Id, CommsTypeEnum.GenericLie, whom.NameSpan + " slept all night!");
 						}
 						else if (LastNightAnnouncedSleep.Contains(whom.Id))
 						{
@@ -505,7 +505,7 @@ namespace WebApplication1.Models
 							// this is insetad of using CommsTypeEnum.LiedAboutSleeping:
 							LastNightWentOutProbability[whom.Id] += MIstrustToMult(Relation(subject.Id).DarkSideSuspicion - Relation(whom.Id).DarkSideSuspicion * .5) * .5;
 							Relation(whom.Id).DarkSideSuspicion += trustThisReport - .1;
-							var accuserAddSusp = accusedTrust * .75 + MIstrustToMult(0- LastNightWentOutProbability[whom.Id])+.5;
+							var accuserAddSusp = accusedTrust * .75 + MIstrustToMult(0 - LastNightWentOutProbability[whom.Id]) + .5;
 							Relation(subject.Id).DarkSideSuspicion += accuserAddSusp;
 							Trace("Accused of sleep/went-out lying addSusp:" + (trustThisReport - .1).ToString("0.00"));
 							Trace("Accuser of sleep/went-out lying addSusp:" + accuserAddSusp.ToString("0.00"));
@@ -540,6 +540,40 @@ namespace WebApplication1.Models
 			}
 		}
 
+		public string PickJailee(double threshHold)
+		{
+			var max = threshHold;
+
+			string who = null;
+
+			foreach (var x in Relations)
+			{
+				double t = 1;
+
+				if (x.PlayerId == Me.Id)
+				{
+					t += MIstrustToMult(0 - SuspicionAgainstMe);
+				}
+				else
+				{
+					t += MIstrustToMult(0 - x.DarkSideSuspicion);
+				}
+				if (x.GussedBites < 3)
+				{
+					t += x.GussedBites;
+				}
+
+				t = t * r.NextDouble() * r.NextDouble() + t * r.NextDouble() * r.NextDouble();
+				if (t > max)
+				{
+					max = t;
+					who = x.PlayerId;
+				}
+			}
+			return who;
+		}
+
+
 		public string PickEnemy(double threshHold)
 		{
 			var max = threshHold;
@@ -556,17 +590,26 @@ namespace WebApplication1.Models
 						t += .2;
 				}
 
-				t += x.Enmity*.5;
+				t += x.Enmity * .2;
 
 				if (Me.IsVampire)
 				{
 					// stake anyone unless they're probably a vamp
 					// todo: careful of staking publicly trusted
-					t += r.NextDouble() - MIstrustToMult(5 - x.DarkSideSuspicion) - MIstrustToMult(x.DarkSideSuspicion+2);
+					// prefer anyone between 0 and 5 susp
+					t += r.NextDouble() * 2 - MIstrustToMult(5 - x.DarkSideSuspicion) - MIstrustToMult(x.DarkSideSuspicion + 2);
+					
+					var numAllies = Relations.Sum(rr => (rr.KnownVampire || rr.GussedBites > 3) ? 1 : 0) + 1;
+					var numEnemies = Relations.Count() + 1 - numAllies;
+					// if vampires prob in majority, go stake crazy
+					if (numAllies > numEnemies
+						|| Me.IsMayor && numAllies == numEnemies
+						) 
+						t =  t * 2 +1;
 				}
 				else
 				{
-					t += MIstrustToMult(2 - x.DarkSideSuspicion) + x.DarkSideSuspicion * .05;
+					t += MIstrustToMult(2 - x.DarkSideSuspicion) * 1.5 + x.DarkSideSuspicion * .05;
 				}
 
 				t = t * r.NextDouble() * r.NextDouble() + t * r.NextDouble() * r.NextDouble();
@@ -603,7 +646,7 @@ namespace WebApplication1.Models
 			if (otherIds.Any())
 			{
 				d.JailWhom = RandomId(ids);
-				d.KillWhom = PickEnemy(.8);
+				d.KillWhom = PickEnemy(.9);
 			}
 
 			//if (r.Next(10)  < 5 - (turnId / 2))

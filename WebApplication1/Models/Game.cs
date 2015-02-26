@@ -145,9 +145,9 @@ namespace WebApplication1.Models
 
 			foreach (var p in RandomPlayers())
 			{
-				if ((nvampires + 1) >= n / 2.0)
+				if ((nvampires + 1) >= n / 2.4)
 					break;
-				if (r.NextDouble()*100 <  n*1.5 )
+				if (r.NextDouble()*100 <  2 + n )
 				{
 					p.IsVampire = true;
 					nvampires++;

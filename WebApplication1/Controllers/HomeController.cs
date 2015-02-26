@@ -9,6 +9,12 @@ namespace WebApplication1.Controllers
 	public class HomeController : Controller
 	{
 
+		public ActionResult UnWarn()
+		{
+			Game.UpdateInProgress = false;
+			return Content(DateTime.Now.ToShortTimeString());
+		}
+
 		public ActionResult Warn()
 		{
 			Game.UpdateInProgress = true;
@@ -112,8 +118,8 @@ namespace WebApplication1.Controllers
 				return Content("Naughty naughty!");
 			}
 			var player = game.GetPlayer(playerId);
-			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player)
-				.OrderBy(l => l.Turn);
+			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player);
+				// todo orderby
 			string currentTurn = "";
 			string logResult = "<h4 class='debug-heading'>Debug info for " + player.NameSpan
 				+ (player.IsVampire ? " V" : "");
