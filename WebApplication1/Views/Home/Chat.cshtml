@@ -46,10 +46,15 @@
 				latest.text(txt);
 				if (finish) {
 					latest.removeClass("latest");
+					scrollBottom($("#discussion"));
 				}
 			}
 		});
 
+		function scrollBottom(el) {
+			el.stop();
+			el.animate({ scrollTop: el.prop("scrollHeight") - el.height() }, 1000);
+		}
 
 		function schedulePush() {
 			if (!_pushing) {
