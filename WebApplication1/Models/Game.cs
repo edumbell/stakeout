@@ -48,7 +48,7 @@ namespace WebApplication1.Models
 				var sv = new GameEvent()
 				{
 					EventType = EventTypeEnum.VoteStake,
-					Subject = subject,
+					Speaker = subject,
 					Whom = stakeWhom
 				};
 				AddToLog(sv);
@@ -60,7 +60,7 @@ namespace WebApplication1.Models
 				var jv = new GameEvent()
 				{
 					EventType = EventTypeEnum.VoteJail,
-					Subject = subject,
+					Speaker = subject,
 					Whom = jailWhom
 				};
 				AddToLog(jv);
@@ -158,10 +158,9 @@ namespace WebApplication1.Models
 
 		public void StartTurn()
 		{
-			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
-			foreach (var ai in ais)
+			foreach (var ai in Players.Select(x => x.AI))
 			{
-				ai.AI.OnDayEnding();
+				ai.OnDayEnding();
 			}
 			var i = Turns.Keys.Any() ? Turns.Keys.Max() + 1 : 1;
 			var t = new Turn()
@@ -189,8 +188,10 @@ namespace WebApplication1.Models
 				return Turns.Any();
 			}
 		}
-		public void ProcessNightInstruction(NightInstruction i)
+		public void ProcessNightInstruction(NightFormModel model)
 		{
+			var i = new NightInstruction(this, model);
+			i.Actor.AI.LastNightAction = model;
 			var logEvent = new GameEvent(i);
 			AddToLog(logEvent);
 			if (CurrentTurn().NightInstructions.Any())
@@ -221,6 +222,7 @@ namespace WebApplication1.Models
 				}
 			}
 			CurrentTurn().DayInstructions.Add(i);
+
 			Hub.DisplayVotes(this, VotesNeeded);
 
 			if (CurrentTurn().DayInstructions.Count() == MobilePlayers
@@ -279,10 +281,7 @@ namespace WebApplication1.Models
 
 					var met = CurrentTurn().NightInstructions.Where(x => x.Whom == i.Whom && x != i).Select(x => x.Actor);
 
-					if (i.Actor.Strategy == StrategyEnum.AI)
-					{
-						i.Actor.AI.ReceiveWatchResult(watcheeAction == NightActionEnum.Sleep, met.Select(x => x.Id));
-					}
+					i.Actor.AI.ReceiveWatchResult(watcheeAction == NightActionEnum.Sleep, met.Select(x => x.Id));
 
 					// send 'met' messages
 
@@ -310,14 +309,10 @@ namespace WebApplication1.Models
 					{
 						Hub.SendPrivate(i.Whom, p.NameSpan + " came to try and bite you. You have a new vampire friend.");
 						Hub.SendPrivate(p, "You went to bite " + i.Whom.NameSpan + " but they are a vampire! You have a new vampire friend.");
-						if (i.Actor.Strategy == StrategyEnum.AI)
-						{
+
 							i.Actor.AI.TellFellowVampire(i.Whom.Id);
-						}
-						if (i.Whom.Strategy == StrategyEnum.AI)
-						{
 							i.Whom.AI.TellFellowVampire(i.Actor.Id);
-						}
+
 					}
 					else
 					{
@@ -329,10 +324,8 @@ namespace WebApplication1.Models
 							msg += "  This is your second bite. One more and you become a vampire. You might want to keep this a secret...";
 						}
 						Hub.SendPrivate(i.Whom, msg);
-						if (i.Whom.Strategy == StrategyEnum.AI)
-						{
 							i.Whom.AI.OnMeBitten();
-						}
+
 
 					}
 				}
@@ -350,7 +343,7 @@ namespace WebApplication1.Models
 					Hub.SendPrivate(p, "You are now a vampire! You must help the other vampires take over the village.");
 				}
 			}
-			foreach (var p in MobilePlayers.Where(p => p.Strategy == StrategyEnum.AI))
+			foreach (var p in MobilePlayers)
 			{
 				p.AI.MakeMorningAnnouncements();
 			}
@@ -371,11 +364,15 @@ namespace WebApplication1.Models
 				System.Threading.Thread.Sleep(5000);
 			}
 
+			foreach (var p in Players)
+			{
+				p.AI.ResetBeforeNight(Players.Select(m => m.Id).ToList());
+			}
+
 			foreach (var p in MobilePlayers.Where(p => p.Strategy == StrategyEnum.AI))
 			{
 				var inst = p.AI.GetNightInstruction(MobilePlayers.Select(m => m.Id).ToList(), CurrentTurn().Id);
-				var inst2 = new NightInstruction(this, inst);
-				ProcessNightInstruction(inst2);
+				ProcessNightInstruction(inst);
 			}
 		}
 
@@ -431,10 +428,9 @@ namespace WebApplication1.Models
 				if (d.StakeVote != null)
 				{
 					stakeVotes[d.StakeVote.Id] += d.Weight;
-					if (GetPlayer(d.StakeVote.Id).Strategy == StrategyEnum.AI)
-					{
+					
 						GetPlayer(d.StakeVote.Id).AI.TellStakeVote(d.Actor.Id);
-					}
+					
 				}
 			}
 
@@ -451,7 +447,7 @@ namespace WebApplication1.Models
 					var jailEvent = new GameEvent()
 						{
 							EventType = EventTypeEnum.WasJailed,
-							Subject = toJail
+							Speaker = toJail
 						};
 					AnnounceEventToAIs(jailEvent);
 					AddToLog(jailEvent);
@@ -512,19 +508,17 @@ namespace WebApplication1.Models
 
 		public void AnnounceToAIs(CommsEvent comms)
 		{
-			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
-			foreach (var ai in ais)
+			foreach (var ai in Players)
 			{
-				ai.AI.HearComms(comms.EventType, comms.Subject, comms.Whom);
+				ai.AI.HearComms(comms);
 			}
 		}
 
 		public void AnnounceEventToAIs(GameEvent ev)
 		{
-			var ais = Players.Where(p => p.Strategy == StrategyEnum.AI);
-			foreach (var ai in ais)
+			foreach (var ai in Players)
 			{
-				ai.AI.ProcessVotingEvent(ev.EventType, ev.Subject, ev.Whom);
+				ai.AI.ProcessVotingEvent(ev.EventType, ev.Speaker, ev.Whom);
 			}
 		}
 
@@ -549,6 +543,7 @@ namespace WebApplication1.Models
 		public bool IsDead { get; set; }
 		public bool IsInJail { get; set; }
 		public int Bites { get; set; }
+		public int AnnouncedBites { get; set; }
 		public string Id { get; set; }
 		public string Name { get; set; }
 
@@ -561,7 +556,7 @@ namespace WebApplication1.Models
 		}
 		public void SetColour()
 		{
-			string[] cols = { "#7766ff","#0099ff", "#bb00ff", "#f000aa", "#ff4444", "#ff9900", "#99c000", "#00c0a4", "#00c600", "#aaaaaa" };
+			string[] cols = { "#7755ff","#00a8ea", "#bb00ff", "#f000aa", "#ff4444", "#f2a200", "#99c000", "#00c0a4", "#00c600", "#aaaaaa" };
 			var cid = Name.ToCharArray().Sum(x => (int)x) % cols.Count();
 			Colour = cols[cid];
 			if (Game.Players.Select(p => p.Colour).Contains(Colour))

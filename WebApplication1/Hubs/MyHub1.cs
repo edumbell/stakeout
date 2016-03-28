@@ -63,11 +63,12 @@ namespace WebApplication1.Hubs
 			Announce(theGame, p.NameSpan + " (a bot) joined");
 		}
 
-		public void AnnounceComms(Game game, CommsEvent comms, string customMessage = null)
+		public void AnnounceComms(Game game, CommsEvent comms, bool accusing = false, string customMessage = null)
 		{
+			string lied = accusing ? " lied! -- " : " ";
 			game.AddToLog(comms);
 			game.AnnounceToAIs(comms);
-			string msg = ":: " + comms.Subject.NameSpan + ": ";
+			string msg = comms.Speaker.NameSpan + "> ";
 			if (customMessage != null)
 			{
 				Announce(game, msg  + customMessage);
@@ -83,13 +84,20 @@ namespace WebApplication1.Hubs
 						msg += "I'm staying at home";
 						break;
 					case CommsTypeEnum.Slept:
-						msg += comms.Whom.NameSpan + " stayed at home";
+						msg += comms.Whom.NameSpan + lied + " stayed at home";
 						break;
 					case CommsTypeEnum.GenericLie:
 						msg += comms.Whom.NameSpan + " is a liar!";
 						break;
 					case CommsTypeEnum.WentOut:
-						msg += comms.Whom.NameSpan + " went out";
+						if (comms.Where == null)
+						{
+							msg += comms.Whom.NameSpan + lied + " went out";
+						}
+						else
+						{
+							msg += comms.Whom.NameSpan + lied + " was at " + comms.Where.NameSpan + "'s";
+						}
 						break;
 				}
 				Announce(game, msg);
@@ -103,7 +111,7 @@ namespace WebApplication1.Hubs
 			if (p != null)
 			{
 				p.ConnectionId = this.Context.ConnectionId;
-
+				p.AI.Hub = this;
 				var all = AllClientsInGame(theGame);
 
 				Announce(theGame, p.NameSpan + " joined");

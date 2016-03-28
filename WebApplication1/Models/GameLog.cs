@@ -42,20 +42,21 @@ namespace WebApplication1.Models
 	public abstract class LogItem
 	{
 		public string Turn { get; set; }
-		public Player Subject { get; set; }
+		public Player Speaker { get; set; }
 		public Player Whom { get; set; }
+		public Player Where { get; set; }
 	}
 	public class GameEvent : LogItem
 	{
 		public EventTypeEnum EventType { get; set; }
-		public Player Where { get; set; }
+
 		public GameEvent()
 		{
 
 		}
 		public GameEvent(NightInstruction ni)
 		{
-			Subject = ni.Actor;
+			Speaker = ni.Actor;
 			Whom = ni.Whom;
 			switch (ni.Action)
 			{
@@ -76,7 +77,7 @@ namespace WebApplication1.Models
 
 		public override string ToString()
 		{
-			var result = Subject.NameSpan + " " + EventType;
+			var result = Speaker.NameSpan + " " + EventType;
 			if (Whom != null)
 			{
 				result += " " + Whom.NameSpan;
@@ -95,12 +96,13 @@ namespace WebApplication1.Models
 
 		public bool Lied { get; set; }
 
-		public CommsEvent(Player subject, CommsTypeEnum type, bool lied, Player whom = null)
+		public CommsEvent(Player subject, CommsTypeEnum type, bool lied, Player whom = null, Player where = null)
 		{
 			EventType = type;
-			Subject = subject;
+			Speaker = subject;
 			Whom = whom;
 			Lied = lied;
+			Where = where;
 		}
 
 		public override string ToString()
@@ -108,7 +110,7 @@ namespace WebApplication1.Models
 			string verb = "said";
 			if (Lied)
 				verb = "lied";
-			var result = Subject.NameSpan + " " + verb;
+			var result = Speaker.NameSpan + " " + verb;
 			if (Whom != null)
 			{
 				result += " " + Whom.NameSpan;

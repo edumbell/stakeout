@@ -12,14 +12,20 @@
 	@Html.ValidationSummary(false)
 
 	<div class="row">
-		<div class="col-sm-5 comms-whom-wrapper">
-			@Html.DropDownListFor(m => m.WhomId, Model.OtherPlayers, null, new { @class = "select form-control " })
+		<div class="col-xs-3 comms-whom-wrapper">
+			@Html.DropDownListFor(m => m.WhomId, Model.OtherPlayers, null, new { @class = "select form-control", style="display:none" })
 			<div class="clearfix"></div>
 		</div>
-		<div class="col-sm-5 comms-type-wrapper">
+		<div class="col-xs-4 comms-type-wrapper">
 			@Html.DropDownListFor(m => m.CommsType, Model.Options(),null, new { @class = "select form-control" })
 			<div class="clearfix"></div>
 		</div>
+		<div class="col-xs-4 comms-where-wrapper" style="display:none">
+			to
+			@Html.DropDownListFor(m => m.WhereId, Model.OtherPlayers, "[unknown]", new { @class = "select form-control " })
+			<div class="clearfix"></div>
+		</div>
+
 	</div>
 	<div class="row">
 		<div class="col-xs-12">

@@ -166,6 +166,9 @@
 			$.connection.hub.start().done(function () {
 				console.log('connected');
 				hub.server.linkConnectionToPlayer(_gameId, _pid).then(function () {
+					$("#connecting").hide();
+					$("#status").show(300);
+					
 					console.log('linked');
 					$.connection.stakeHub.server.checkForRefresh(_gameId);
 				});
@@ -226,13 +229,22 @@
 
 			$("body").on("change", ".comms-type-wrapper select", null, function () {
 
-				if ($(".comms-type-wrapper select").val() == '2') {
+				if ($(".comms-type-wrapper select").val() == '2') { // slept
 					$(".comms-whom-wrapper select").attr("disabled", "disabled");
 					$(".comms-whom-wrapper select").hide(100);
 				}
 				else {
 					$(".comms-whom-wrapper select").removeAttr("disabled");
 					$(".comms-whom-wrapper select").show(100);
+				}
+
+				if ($(".comms-type-wrapper select").val() != '4') { // went out
+					$(".comms-where-wrapper select").attr("disabled", "disabled");
+					$(".comms-where-wrapper").hide(100);
+				}
+				else {
+					$(".comms-where-wrapper select").removeAttr("disabled");
+					$(".comms-where-wrapper").show(100);
 				}
 			});
 
@@ -248,15 +260,17 @@
 <div class="row">
 	<div class="col-sm-12">
 		<div class="alert-info alert">
-			<h4 id="status">
-				Waiting for players.
+			<h4 id="connecting">Connecting...</h4>
+			<div class="player-status pull-right"></div>
+			<h4 id="status" style="display:none">
+				Waiting for players
 				<br /><br />
 				<div class="btn-group">
 					<input class="btn btn-info ai-button" value="Add 1 bot player" />
 					<input class="btn btn-primary start-button" value="Start game" />
 				</div>
 			</h4>
-			<div class="player-status pull-right"></div>
+			
 		</div>
 	</div>
 	<div class="col-sm-6 form-horizontal">

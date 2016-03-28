@@ -94,7 +94,12 @@ namespace WebApplication1.Controllers
 				Strategy = StrategyEnum.Human,
 				Id = Guid.NewGuid().ToString()
 			};
+			player.AI = new AI()
+			{
+				Me = player
+			};
 			theGame.Players.Add(player);
+
 			player.SetColour();
 			return View("Interface", new StartGameModel()
 			{
@@ -118,7 +123,7 @@ namespace WebApplication1.Controllers
 				return Content("Naughty naughty!");
 			}
 			var player = game.GetPlayer(playerId);
-			var allLogs = game.Log.Where(l => l.Subject == player || l.Whom == player);
+			var allLogs = game.Log.Where(l => l.Speaker == player || l.Whom == player);
 				// todo orderby
 			string currentTurn = "";
 			string logResult = "<h4 class='debug-heading'>Debug info for " + player.NameSpan
@@ -141,9 +146,9 @@ namespace WebApplication1.Controllers
 				{
 					var otherPlayer = game.GetPlayer(r.PlayerId);
 					string relation = otherPlayer.NameSpan;
-					relation += " <span class='enmity'>e:" + r.Enmity.ToString("0.0") + "</span>";
-					relation += " <span class='suspicion'>s:" + r.DarkSideSuspicion.ToString("0.0") + "</span>";
-					relation += " b " + r.GussedBites.ToString("0.0");
+					relation += " <span class='enmity'>e:" + r.Enmity.ToString("0.0") +  "</span>";
+					relation += " <span class='suspicion'>s:" + r.DarkSideSuspicion.ToString("0.0") + " + " + r.SuspicionThisTurn.ToString("+0.0;-0.0") + "</span>";
+					relation += " b " + r.GussedBites.ToString("0.0") + " " + r.GuessedBitesThisTurn.ToString("+0.0;-0.0");
 					logResult += relation + "<br/>";
 				}
 			}
@@ -158,7 +163,11 @@ namespace WebApplication1.Controllers
 				logResult += log.ToString() + "<br/>";
 			}
 			if (player.AI != null)
+			{
 				logResult += player.AI.TraceLog;
+				logResult += "<br/>---------final reprocess this turn:<br/>";
+				logResult += player.AI.ThisTurnTraceLog;
+			}
 			return Content(logResult);
 		}
 
@@ -190,8 +199,7 @@ namespace WebApplication1.Controllers
 				return Content("Turn already complete! Did you use the back button in your browser??");
 			else
 			{
-				var instruction = new NightInstruction(theGame, model);
-				theGame.ProcessNightInstruction(instruction);
+				theGame.ProcessNightInstruction(model);
 				return Content(null);
 			}
 		}
@@ -218,7 +226,7 @@ namespace WebApplication1.Controllers
 		{
 			var theGame = Game.GetGame(model.GameId);
 			var player = theGame.GetPlayer(model.ActorId);
-			var comms = new CommsEvent(player, model.CommsType, false, theGame.GetPlayer(model.WhomId));
+			var comms = new CommsEvent(player, model.CommsType, false, theGame.GetPlayer(model.WhomId), theGame.GetPlayer(model.WhereId) );
 			theGame.Hub.AnnounceComms(theGame, comms);
 			return Content(null);
 		}
@@ -271,5 +279,18 @@ namespace WebApplication1.Controllers
 
 
 		}
+
+		public ActionResult Chat(string name, string colour)
+		{
+			var model = new ChatUserModel();
+			model.Name = name;
+			model.Colour = colour;
+			return View(model);
+		}
+	}
+	public class ChatUserModel
+	{
+		public string Name { get; set; }
+		public string Colour { get; set; }
 	}
 }

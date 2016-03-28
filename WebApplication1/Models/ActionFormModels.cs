@@ -37,6 +37,7 @@ namespace WebApplication1.Models
 		public string GameId { get; set; }
 		public string ActorId { get; set; }
 		public string WhomId { get; set; }
+		public string WhereId { get; set; }
 		public IEnumerable<System.Web.Mvc.SelectListItem> OtherPlayers { get; set; }
 		public IEnumerable<System.Web.Mvc.SelectListItem> Options()
 		{
