@@ -10,7 +10,7 @@
 		var _name = '@Model.Name';
 		var _id = encodeURIComponent(_name);
 		if (!_id)
-			_id = jQuery.guid++;
+			_id = new Date().getMilliseconds();
 		var _latest = "#discussion  li.latest." + _id;
 		var _colour = '@Model.Colour';
 		var _pushing = false;
@@ -42,6 +42,10 @@
 				if (latest.length == 0) {
 					$("#discussion").append("<li class='latest " + id + "' style='color:#" + colour + "'></li>")
 					latest = $(".latest." + id);
+				}
+				else if (finish)
+				{
+					$("#discussion").append(latest);
 				}
 				latest.text(txt);
 				if (finish) {

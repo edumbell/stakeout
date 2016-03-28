@@ -15,6 +15,8 @@ namespace WebApplication1.Hubs
 
 		public void Update(string text, string colour, string id, bool finish)
 		{
+			if (!finish && text.Length > 0)
+				text += " _";
 			Clients.All.UpdateText(text, colour, id, finish);
 		}
 
