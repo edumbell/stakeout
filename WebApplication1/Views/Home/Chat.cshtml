@@ -27,7 +27,7 @@
 			$("#input").keyup(function (e) {
 				if (e.keyCode == 13) {
 					doPush(true);
-
+					scrollBottom($("#discussion"));
 					// Do something
 				}
 				else
@@ -38,7 +38,7 @@
 
 			hub.client.updateText = function (txt, colour, id, finish) {
 				console.log('update received ' + id + ' ' + txt);
-				var latest = $(".latest." +id);
+				var latest = $(".latest." + id);
 				if (latest.length == 0) {
 					$("#discussion").append("<li class='latest " + id + "' style='color:#" + colour + "'></li>")
 					latest = $(".latest." + id);
@@ -46,10 +46,13 @@
 				latest.text(txt);
 				if (finish) {
 					latest.removeClass("latest");
+				}
+				if ($("#auto:checked").length > 0) {
 					scrollBottom($("#discussion"));
 				}
-			}
+			};
 		});
+
 
 		function scrollBottom(el) {
 			el.stop();
@@ -85,4 +88,5 @@
 		<ul id="discussion" class="msgbox msgfull"></ul>
 	</div>
 </div>
-<textarea id="input" class="form-control"></textarea>
+<textarea id="input" class="form-control" style="width: 100%; box-sizing: border-box;" ></textarea>
+<label><input checked="checked" class="checkbox-inline" type=checkbox id="auto" /> Auto-scroll</label>
