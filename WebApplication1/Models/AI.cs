@@ -40,10 +40,12 @@ namespace WebApplication1.Models
 		public double TrustThisTurn(string pid)
 		{
 			// only use after preprocessing contradictions
-			var trust =  MIstrustToMult(Relation(pid).DarkSideSuspicion)
+			var trust = MIstrustToMult(Relation(pid).DarkSideSuspicion)
 					- Relation(pid).ContradictionsThisTurn;
 			if (trust < 0)
 				trust = 0;
+			if (trust > 2)
+				trust = 2;
 			return trust;
 		}
 
@@ -193,7 +195,7 @@ namespace WebApplication1.Models
 				var keepMouthShut = false;
 				var accuse = false;
 
-				if (comms.Whom !=  null && LastNightAnnouncedSleep.Contains(comms.Whom.Id))
+				if (comms.Whom != null && LastNightAnnouncedSleep.Contains(comms.Whom.Id))
 				{
 					// they went out, and lied about it [or we're claiming they lied about it] - do we accuse?
 					// But careful not to rat out (or falsely accuse) an accomplice
@@ -359,7 +361,7 @@ namespace WebApplication1.Models
 							var comms = new CommsEvent(Me, CommsTypeEnum.WentOut, true, Me.Game.GetPlayer(alsoAnnounceWhom), Me.Game.GetPlayer(LastNightAction.Whom));
 							DecideWhetherAnnounceWentOut(comms);
 						}
-						
+
 					}
 					else
 					{
@@ -402,9 +404,9 @@ namespace WebApplication1.Models
 			newAccuserSusp -= .15;
 			newAccusedSusp -= .15;
 			Relation(accused).SuspicionThisTurn += newAccusedSusp;
-			Trace(true,"Accused suspicion: " + newAccusedSusp.ToString("0.00"));
+			Trace(true, "Accused suspicion: " + newAccusedSusp.ToString("0.00"));
 			Relation(accuser).SuspicionThisTurn += newAccuserSusp;
-			Trace(true,"Accuser suspicion: " + newAccuserSusp.ToString("0.00"));
+			Trace(true, "Accuser suspicion: " + newAccuserSusp.ToString("0.00"));
 
 
 			// public
@@ -472,9 +474,11 @@ namespace WebApplication1.Models
 			}
 		}
 
-		
+
 		private double ProcessBiteInfo(string whom, double probabilityIsBite, CommsEvent comms)
 		{
+			if (probabilityIsBite > 1)
+				probabilityIsBite = 1;
 			// got here if someone was bitten (including self) and self didn't do the biting
 			bool reprocess = probabilityIsBite < 1;
 
@@ -568,19 +572,13 @@ namespace WebApplication1.Models
 		// will skip if already processed
 		public void ProcessLie(string lier, CommsTypeEnum topic, string msg, CommsEvent fromComms)
 		{
-			
-			if (fromComms == null || !CurrentTurnAlreadyProcessedComms.Contains(fromComms))
-			{
-				CurrentTurnAlreadyProcessedComms.Add(fromComms);
-			}
-			else
-			{
+			if (CurrentTurnAlreadyProcessedComms.Contains(fromComms))
 				return;
-			}
+			CurrentTurnAlreadyProcessedComms.Add(fromComms);
 			KnownLies.Add(fromComms);
 
 			Relation(lier).DarkSideSuspicion += 5;
-			Trace(false,"Detect lie +5");
+			Trace(false, "Detect lie +5");
 
 			// can rat out a fellow vampire we don't like
 			if (!Me.IsVampire || Relation(lier).Enmity > r.NextDouble() * 2)
@@ -640,44 +638,44 @@ namespace WebApplication1.Models
 		public void PreprocessAllComms()
 		{
 			// calculates LastNightWentOutProbability and detects contradictions
-			
-			foreach (var comm in CurrentTurnComms.Where(x => x.Speaker != Me ))
+
+			foreach (var comm in CurrentTurnComms.Where(x => x.Speaker != Me))
 			{
 				var thisRelation = Relation(comm.Speaker.Id);
 
 
-				var aboutSamePerson = CurrentTurnComms.Where(x => x.Whom == comm.Whom &&  x != comm);
+				var aboutSamePerson = CurrentTurnComms.Where(x => x.Whom == comm.Whom && x != comm);
 				if (aboutSamePerson.Any())
 				{
 
-						foreach (var a in aboutSamePerson)
+					foreach (var a in aboutSamePerson)
+					{
+						var otherTrust = MIstrustToMult(Relation(a.Speaker.Id).DarkSideSuspicion);
+						if (KnownTruths.Contains(a))
+							otherTrust = 100;
+						if (KnownLies.Contains(a))
+							otherTrust -= 100;
+						if (AreMutuallyExclusive(a.EventType, comm.EventType)
+							)
 						{
-							var otherTrust = MIstrustToMult(Relation(a.Speaker.Id).DarkSideSuspicion);
-							if (KnownTruths.Contains(a))
-								otherTrust = 100;
-							if (KnownLies.Contains(a))
-								otherTrust -= 100;
-							if (AreMutuallyExclusive(a.EventType, comm.EventType)
-								)
+							thisRelation.ContradictionsThisTurn += otherTrust;
+							thisRelation.SuspicionThisTurn += otherTrust * .5;
+						}
+						else if (AreEquivalent(a.EventType, comm.EventType))
+						{
+							if (a.Where == comm.Where || a.Where == null || comm.Where == null) // could be null - that's fine
+							{
+								thisRelation.ContradictionsThisTurn -= otherTrust * .5;
+								thisRelation.SuspicionThisTurn -= otherTrust * .2;
+							}
+							else if (a.Where != comm.Where)
 							{
 								thisRelation.ContradictionsThisTurn += otherTrust;
 								thisRelation.SuspicionThisTurn += otherTrust * .5;
 							}
-							else if (AreEquivalent(a.EventType, comm.EventType))
-							{
-								if (a.Where == comm.Where || a.Where == null || comm.Where == null) // could be null - that's fine
-								{
-									thisRelation.ContradictionsThisTurn -= otherTrust * .5;
-									thisRelation.SuspicionThisTurn -= otherTrust * .2;
-								}
-								else if (a.Where != comm.Where)
-								{
-									thisRelation.ContradictionsThisTurn += otherTrust ;
-									thisRelation.SuspicionThisTurn += otherTrust * .5;
-								}
-							}
-							// else the two assertions are orthoganal
 						}
+						// else the two assertions are orthoganal
+					}
 
 				}
 
@@ -706,7 +704,7 @@ namespace WebApplication1.Models
 			}
 		}
 
-		public void ProcessComms(CommsEvent comm)
+		public void ProcessComms(CommsEvent comm, bool isReprocess)
 		{
 			if (comm.Speaker == Me)
 			{
@@ -738,13 +736,13 @@ namespace WebApplication1.Models
 						bool theyTrustMe = Relation(comm.Speaker.Id).DarkSideSuspicion + r.NextDouble() * 2 - r.NextDouble() * 3 > SuspicionAgainstMe;
 
 						// don't try and accuse if there was another observer who'd know that we can't possibly know
-						if (theyTrustMe && !LastNightMet.Any() && r.NextDouble() > .5)
+						if (!isReprocess && theyTrustMe && !LastNightMet.Any() && r.NextDouble() > .5)
 						{
 							if (Me.Strategy == StrategyEnum.AI)
 							{
 
 								var falseAccuse = new CommsEvent(Me, CommsTypeEnum.LiedAboutBeingBitten, true, subject);
-								Me.Game.Hub.AnnounceComms(Me.Game, falseAccuse, true, "No possible suspects!");
+								Me.Game.Hub.AnnounceComms(Me.Game, falseAccuse, true,comm.Whom.NameSpan + " lied! No possible suspects!");
 							}
 						}
 						return;
@@ -758,7 +756,7 @@ namespace WebApplication1.Models
 					if (cryWolfSusp < -.2)
 						cryWolfSusp = -.2;
 					Relation(comm.Speaker.Id).DarkSideSuspicion += cryWolfSusp;
-					Trace(true,"Cry-wolf addSusp: " + cryWolfSusp.ToString("0.00"));
+					Trace(true, "Cry-wolf addSusp: " + cryWolfSusp.ToString("0.00"));
 
 					break;
 				case CommsTypeEnum.Slept:
@@ -792,7 +790,7 @@ namespace WebApplication1.Models
 					{
 						// if contrary evidence, don't trust the report
 
-						var trustThisReport = trust - MIstrustToMult(0 - LastNightWentOutProbability[comm.Speaker.Id]) + .5;
+						var trustThisReport = trust; // ????  - MIstrustToMult(0 - LastNightWentOutProbability[comm.Speaker.Id]) + .5;
 						if (LastNightKnownSlept.Contains(comm.Whom.Id))
 						{
 							ProcessLie(comm.Speaker.Id, CommsTypeEnum.GenericLie, comm.Whom.NameSpan + " slept all night!", comm);
@@ -817,9 +815,9 @@ namespace WebApplication1.Models
 							// this is insetad of using CommsTypeEnum.LiedAboutSleeping:
 							LastNightWentOutProbability[whom.Id] += MIstrustToMult(Relation(subject.Id).DarkSideSuspicion - Relation(whom.Id).DarkSideSuspicion * .5) * .5;
 							Relation(whom.Id).SuspicionThisTurn += trustThisReport - .1;
-							var accuserAddSusp = accusedTrust * .75 * ( MIstrustToMult( LastNightWentOutProbability[whom.Id]));
+							var accuserAddSusp = accusedTrust * .75 * (MIstrustToMult(LastNightWentOutProbability[whom.Id]));
 							Relation(subject.Id).SuspicionThisTurn += accuserAddSusp;
-							Trace(true,"Accused of sleep/went-out lying addSusp:" + (trustThisReport - .1).ToString("0.00"));
+							Trace(true, "Accused of sleep/went-out lying addSusp:" + (trustThisReport - .1).ToString("0.00"));
 							Trace(true, "Accuser of sleep/went-out lying addSusp:" + accuserAddSusp.ToString("0.00"));
 						}
 						else
@@ -1016,7 +1014,7 @@ namespace WebApplication1.Models
 			PreprocessAllComms();
 			foreach (var c in CurrentTurnComms.ToList())
 			{
-				ProcessComms(c);
+				ProcessComms(c, CurrentTurnAlreadyProcessedComms.Contains(c));
 			}
 			if (MeBittenLastNight > 0)
 				ProcessBiteInfo(Me.Id, MeBittenLastNight, null);

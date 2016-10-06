@@ -65,6 +65,7 @@ namespace WebApplication1.Hubs
 
 		public void AnnounceComms(Game game, CommsEvent comms, bool accusing = false, string customMessage = null)
 		{
+			System.Threading.Thread.Sleep(300);
 			string lied = accusing ? " lied! -- " : " ";
 			game.AddToLog(comms);
 			game.AnnounceToAIs(comms);
@@ -84,7 +85,7 @@ namespace WebApplication1.Hubs
 						msg += "I'm staying at home";
 						break;
 					case CommsTypeEnum.Slept:
-						msg += comms.Whom.NameSpan + lied + " stayed at home";
+						msg += comms.Whom.NameSpan + lied + " they stayed at home";
 						break;
 					case CommsTypeEnum.GenericLie:
 						msg += comms.Whom.NameSpan + " is a liar!";
@@ -92,11 +93,11 @@ namespace WebApplication1.Hubs
 					case CommsTypeEnum.WentOut:
 						if (comms.Where == null)
 						{
-							msg += comms.Whom.NameSpan + lied + " went out";
+							msg += comms.Whom.NameSpan + lied + " they went out";
 						}
 						else
 						{
-							msg += comms.Whom.NameSpan + lied + " was at " + comms.Where.NameSpan + "'s";
+							msg += comms.Whom.NameSpan + lied + " they were at " + comms.Where.NameSpan + "'s";
 						}
 						break;
 				}

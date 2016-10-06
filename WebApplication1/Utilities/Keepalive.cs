@@ -18,7 +18,7 @@ namespace WebApplication1.Utilities
 					if (!_Singleton._Started)
 					{
 						_Singleton._Started = true;
-						_Singleton._Url = "http://" + context.Request.Url.Host;
+						_Singleton._Url = "http://" + context.Request.Url.Host + ":" + context.Request.Url.Port;
 
 						System.Threading.ThreadPool.QueueUserWorkItem(delegate
 						{
